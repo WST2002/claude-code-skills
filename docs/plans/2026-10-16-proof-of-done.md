@@ -1,7 +1,5 @@
 # Proof of Done Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-
 **Goal:** Ship the `groundwork` marketplace repo with its first plugin, `proof-of-done`, which stops Claude Code from ending a turn after code edits unless verification ran and passed after the last edit.
 
 **Architecture:** Two hook scripts share a small, pure `lib/`. `record.mjs` (PostToolUse + PostToolUseFailure) appends evidence to a per-session JSON Lines ledger. `gate.mjs` (Stop + SubagentStop) reads the ledger and returns `{"decision":"block","reason":...}` when evidence is missing, failed, or masked. All decisions live in pure functions so they are unit-tested without spawning Claude.

@@ -54,6 +54,8 @@ test("masked run does not count", () => {
   const verdict = decide({ entries: [edit(), run("npm test | tail", 0, true)] });
   assert.equal(verdict.allow, false);
   assert.match(verdict.reason, /exit code hidden/);
+  assert.match(verdict.reason, /Run `npm test \| tail` again as a command on its own/);
+  assert.match(verdict.reason, /no pipe, no `;`, `\|\|` or `&` after it/);
 });
 
 test("interrupted run does not count", () => {

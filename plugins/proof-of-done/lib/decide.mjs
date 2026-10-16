@@ -27,7 +27,8 @@ function failedReason(entry) {
     return `\`${entry.command}\` exited with code ${entry.exitCode} after your last edit. Fix the failure, or report it honestly. ${SKIP_HINT}`;
   }
   if (entry.masked) {
-    return `\`${entry.command}\` ran with its exit code hidden (a pipe or "|| true"), so it does not count as proof. Run it again without masking and report the result.`;
+    const rerun = entry.check ? `${entry.check} ${entry.args ?? ""}`.trim() : entry.command;
+    return `\`${entry.command}\` ran with its exit code hidden, so it does not count as proof. Run \`${rerun}\` again as a command on its own: no pipe, no \`;\`, \`||\` or \`&\` after it. Then report the result.`;
   }
   return `\`${entry.command}\` was interrupted, so its result is unknown. Run it again and report the result.`;
 }

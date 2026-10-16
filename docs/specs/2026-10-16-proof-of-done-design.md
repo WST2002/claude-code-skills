@@ -80,11 +80,13 @@ groundwork/
 
 ## 4. How Proof of Done works
 
-### 4.1 Recording evidence (PostToolUse)
+### 4.1 Recording evidence (PostToolUse + PostToolUseFailure)
 
-`record.mjs` runs after every `Bash`, `Edit`, `Write`, `MultiEdit` and `NotebookEdit`
-tool call and appends one entry to the session ledger at
-`${CLAUDE_PLUGIN_DATA}/sessions/<session_id>.json`:
+`record.mjs` runs after every `Bash`, `PowerShell`, `Edit`, `Write`, `MultiEdit` and
+`NotebookEdit` tool call. Successful calls arrive as `PostToolUse`; a shell command
+that exits non-zero arrives as `PostToolUseFailure`, whose `error` field starts with
+`Exit code N`. The script appends one line to the session ledger at
+`${CLAUDE_PLUGIN_DATA}/sessions/<session_id>.jsonl`:
 
 | Tool call | Entry |
 |---|---|
@@ -99,11 +101,18 @@ tool call and appends one entry to the session ledger at
   `npx (tsc|vitest|jest|eslint|playwright test)`, `pytest`, `go test`, `go build`,
   `cargo (test|build|check|clippy)`, `mvn (test|verify|package)`,
   `gradle(w)? (test|build|check)`, `dotnet (test|build)`, `make (test|check)`.
-- Exit code comes from the tool response. If it cannot be determined, the entry
-  is recorded as `exitCode: null` and treated as **not passing**.
+- Exit code: `0` for `PostToolUse`; parsed from the first line of `error` for
+  `PostToolUseFailure`. Interrupted or unparseable runs get `exitCode: null` and are
+  treated as **not passing**.
+- **Masked runs:** a command whose result is hidden — piped into another command
+  without `set -o pipefail` (`npm test | tail`), or followed by `|| true`, `|| :`,
+  `|| exit 0` or a trailing `; true` — is recorded with `masked: true` and never
+  counts as passing.
+- Edits to files outside the project directory (`cwd`) are not recorded.
 
-Ledger writes are atomic (write temp file, rename). Ledgers older than 7 days are
-deleted on each write.
+The ledger is append-only JSON Lines, so parallel tool calls cannot overwrite each
+other's entries. Unparseable lines are skipped. Ledgers older than 7 days are deleted
+on each write.
 
 ### 4.2 The gate (Stop)
 
@@ -117,9 +126,11 @@ deleted on each write.
    - None → **block**: "You changed N code files (list up to 5) but ran no
      verification since. Run: `<detected commands>`. Then report the results. If
      verification is impossible, end with `Verification: skipped — <reason>`."
-   - Latest one failed → **block**: "`<command>` exited with code `<n>` after your last
-     edit. Fix it or report the failure honestly."
-   - Latest one passed → **allow**.
+   - For each distinct command, take its latest run. If any of those failed, was
+     interrupted, or was masked → **block** with that command and why
+     ("`npm test` exited with code 1 after your last edit. Fix it or report the
+     failure honestly.").
+   - Every distinct command's latest run passed → **allow**.
 
 Block output: `{"decision": "block", "reason": "..."}` on stdout, exit 0.
 Any internal error in the hook → **allow** and print a one-line warning to stderr.

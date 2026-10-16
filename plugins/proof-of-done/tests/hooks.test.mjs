@@ -62,6 +62,48 @@ test("code changed through a shell command, then stop: blocked", (t) => {
   assert.equal(block(stop()).decision, "block");
 });
 
+test("a commit message that mentions the test command is not verification", (t) => {
+  const { project, record, stop } = setup(t);
+  record({ tool_name: "Edit", tool_input: { file_path: path.join(project, "src/a.js") } });
+  record({ tool_name: "Bash", tool_input: { command: 'git commit -m "fix npm test flake"' } });
+  assert.equal(block(stop()).decision, "block");
+});
+
+test("the natural shorthand of a detected command supersedes a masked run", (t) => {
+  const { project, record, stop } = setup(t);
+  record({ tool_name: "Edit", tool_input: { file_path: path.join(project, "src/a.js") } });
+  record({ tool_name: "Bash", tool_input: { command: "npm run test 2>&1 | tail" } });
+  record({ tool_name: "Bash", tool_input: { command: "npm test" } });
+  assert.equal(stop().stdout, "");
+});
+
+test("payloads without a session id are neither recorded nor gated", (t) => {
+  const { project, record, stop } = setup(t);
+  const result = record({ session_id: undefined, tool_name: "Edit", tool_input: { file_path: path.join(project, "src/a.js") } });
+  assert.equal(result.code, 0);
+  assert.equal(stop({ session_id: undefined }).stdout, "");
+});
+
+test("/proof shows the newest session of the current project, not another project's", (t) => {
+  const dataDir = tempDir(t);
+  const project = tempDir(t);
+  const other = tempDir(t);
+  writeFiles(project, { "package.json": { scripts: { test: "node --test" } } });
+  runHook("record.mjs", { session_id: "mine", cwd: project, hook_event_name: "PostToolUse", tool_name: "Edit", tool_input: { file_path: path.join(project, "src/mine.js") } }, dataDir);
+  runHook("record.mjs", { session_id: "theirs", cwd: other, hook_event_name: "PostToolUse", tool_name: "Edit", tool_input: { file_path: path.join(other, "src/theirs.js") } }, dataDir);
+  const result = spawnSync(process.execPath, [path.join(scripts, "receipt.mjs")], { cwd: project, env: { ...process.env, CLAUDE_PLUGIN_DATA: dataDir }, encoding: "utf8" });
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /mine\.js/);
+  assert.doesNotMatch(result.stdout, /theirs\.js/);
+  assert.match(result.stdout, /`npm run test`/);
+});
+
+test("/proof with no evidence for this project says so", (t) => {
+  const result = spawnSync(process.execPath, [path.join(scripts, "receipt.mjs")], { cwd: tempDir(t), env: { ...process.env, CLAUDE_PLUGIN_DATA: tempDir(t) }, encoding: "utf8" });
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /No evidence recorded yet for this project/);
+});
+
 test("second stop attempt is allowed", (t) => {
   const { project, record, stop } = setup(t);
   record({ tool_name: "Edit", tool_input: { file_path: path.join(project, "src/a.js") } });

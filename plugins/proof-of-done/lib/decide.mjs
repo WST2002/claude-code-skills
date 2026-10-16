@@ -32,6 +32,19 @@ function failedReason(entry) {
   return `\`${entry.command}\` was interrupted, so its result is unknown. Run it again and report the result.`;
 }
 
+function latestRunPerCheck(runs) {
+  const latest = new Map();
+  for (const run of runs) {
+    const check = run.check ?? run.command;
+    const args = run.args ?? "";
+    if (args === "") {
+      for (const [key, previous] of latest) if ((previous.check ?? previous.command) === check) latest.delete(key);
+    }
+    latest.set(`${check}\u0000${args}`, run);
+  }
+  return latest;
+}
+
 export function decide({ entries, lastMessage = "", stopHookActive = false, verifyCommands = [] }) {
   if (stopHookActive) return { allow: true };
   const lastEdit = entries.findLastIndex((e) => e.type === "edit");
@@ -42,7 +55,6 @@ export function decide({ entries, lastMessage = "", stopHookActive = false, veri
   const runs = entries.slice(lastEdit + 1).filter((e) => e.type === "verify");
   if (runs.length === 0) return { allow: false, reason: unverifiedReason(entries, verifyCommands) };
 
-  const latestByCommand = new Map(runs.map((e) => [e.key ?? e.command, e]));
-  const failing = [...latestByCommand.values()].find((e) => !isPassing(e));
+  const failing = [...latestRunPerCheck(runs).values()].find((e) => !isPassing(e));
   return failing ? { allow: false, reason: failedReason(failing) } : { allow: true };
 }

@@ -3,44 +3,18 @@ import path from "node:path";
 const NON_CODE_EXTENSIONS = new Set([
   ".md", ".mdx", ".txt", ".rst",
   ".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".ico", ".pdf",
-  ".lock", ".lockb",
+  ".lock", ".lockb", ".log", ".out",
 ]);
 const NON_CODE_FILES = new Set(["package-lock.json", "pnpm-lock.yaml", "LICENSE"]);
 const DEFAULT_IGNORE = ["docs/**"];
+const GIT_BASH_DRIVE = /^\/([a-zA-Z])(?=\/|$)/;
 
-const VERIFY_PATTERNS = [
-  /\b(npm|pnpm|yarn|bun)\s+(run\s+)?(test|build|lint|typecheck|check)\b/,
-  /\bnpx\s+(tsc|vitest|jest|eslint|playwright\s+test)\b/,
-  /\bpytest\b/,
-  /\bgo\s+(test|build)\b/,
-  /\bcargo\s+(test|build|check|clippy)\b/,
-  /\bmvnw?\s+(test|verify|package)\b/,
-  /\bgradlew?\s+(test|build|check)\b/,
-  /\bdotnet\s+(test|build)\b/,
-  /\bmake\s+(test|check)\b/,
-];
-
-const SWALLOWED_EXIT = [
-  /\|\|\s*(true|:|exit\s+0)(?=\s|$|;|&|\))/,
-  /;\s*(true|exit\s+0)\s*$/,
-];
-const PIPE = /(^|[^|])\|(?!\|)/;
-const PIPEFAIL = /set\s+-o\s+pipefail/;
-
-export const SHELL_EDIT = "(shell command)";
-const REDIRECT = /(?:^|[^0-9&>=-])>>?\s*(?!&)("[^"]+"|'[^']+'|[^\s;&|<>]+)/g;
-const DISCARDED_OUTPUT = new Set(["/dev/null", "$null", "nul", "NUL"]);
-const FILE_CHANGING = [
-  /\bsed\s+(-[a-zA-Z]*i|--in-place)/,
-  /\bperl\s+-[a-zA-Z]*i/,
-  /\btee\b/,
-  /\b(Set-Content|Add-Content|Out-File|Move-Item|Copy-Item|Remove-Item)\b/i,
-  /(^|[;&|]\s*)(mv|cp|rm)\s/,
-  /\bgit\s+(apply|checkout|restore|stash\s+pop|merge|rebase|cherry-pick|am)\b/,
-];
+function nativePath(filePath) {
+  return process.platform === "win32" ? filePath.replace(GIT_BASH_DRIVE, "$1:") : filePath;
+}
 
 function toProjectPath(filePath, cwd) {
-  const rel = path.relative(cwd, path.resolve(cwd, filePath));
+  const rel = path.relative(cwd, path.resolve(cwd, nativePath(filePath)));
   if (!rel || rel.startsWith("..") || path.isAbsolute(rel)) return null;
   return rel.split(path.sep).join("/");
 }
@@ -80,33 +54,6 @@ export function isCodeFile(filePath, cwd, ignore = []) {
   if (NON_CODE_FILES.has(base)) return false;
   if (NON_CODE_EXTENSIONS.has(path.posix.extname(base).toLowerCase())) return false;
   return ![...DEFAULT_IGNORE, ...ignore].some((glob) => matchesGlob(rel, glob));
-}
-
-export function isVerifyCommand(command, projectCommands = []) {
-  return verifyKey(command, projectCommands) !== null;
-}
-
-export function verifyKey(command, projectCommands = []) {
-  if (typeof command !== "string" || !command.trim()) return null;
-  const projectCommand = projectCommands.find((c) => command.includes(c));
-  if (projectCommand) return projectCommand;
-  const packageScript = VERIFY_PATTERNS[0].exec(command);
-  if (packageScript) return `${packageScript[1]} ${packageScript[3]}`;
-  const match = VERIFY_PATTERNS.slice(1).map((re) => re.exec(command)).find(Boolean);
-  return match ? match[0].replace(/\s+/g, " ") : null;
-}
-
-export function isMasked(command) {
-  if (SWALLOWED_EXIT.some((re) => re.test(command))) return true;
-  return PIPE.test(command) && !PIPEFAIL.test(command);
-}
-
-export function shellEditTargets(command) {
-  const targets = [...command.matchAll(REDIRECT)]
-    .map((match) => match[1].replace(/^["']|["']$/g, ""))
-    .filter((target) => !DISCARDED_OUTPUT.has(target));
-  if (targets.length) return targets;
-  return FILE_CHANGING.some((re) => re.test(command)) ? [SHELL_EDIT] : [];
 }
 
 export function parseExitCode(error) {

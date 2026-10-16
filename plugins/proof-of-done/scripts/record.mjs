@@ -6,6 +6,7 @@ import { appendEntry, ledgerPath, pruneOldLedgers } from "../lib/ledger.mjs";
 
 function main() {
   const input = readHookInput();
+  if (typeof input.session_id !== "string") return;
   const config = loadConfig(input.cwd);
   if (!config.enabled) return;
   const entries = entriesFor(input, config, config.verify ?? detectVerifyCommands(input.cwd));

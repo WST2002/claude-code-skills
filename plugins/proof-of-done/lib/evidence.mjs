@@ -1,4 +1,5 @@
-import { SHELL_EDIT, isCodeFile, isMasked, parseExitCode, shellEditTargets, verifyKey } from "./classify.mjs";
+import { isCodeFile, parseExitCode } from "./classify.mjs";
+import { SHELL_EDIT, analyzeShell } from "./shell.mjs";
 
 const EDIT_TOOLS = new Set(["Edit", "Write", "MultiEdit", "NotebookEdit"]);
 const SHELL_TOOLS = new Set(["Bash", "PowerShell"]);
@@ -11,12 +12,15 @@ function exitCodeOf(input) {
 function shellEntries(input, config, projectCommands, at) {
   const command = input.tool_input?.command;
   if (typeof command !== "string") return [];
-  const entries = [];
-  const edited = shellEditTargets(command).find((t) => t === SHELL_EDIT || isCodeFile(t, input.cwd, config.ignore));
-  if (edited) entries.push({ type: "edit", file: edited, at });
-  const key = verifyKey(command, projectCommands);
-  if (key) entries.push({ type: "verify", command, key, exitCode: exitCodeOf(input), masked: isMasked(command), at });
-  return entries;
+  const { cwd } = input;
+  return analyzeShell(command, projectCommands).flatMap((event) => {
+    if (event.type === "edit") {
+      const counts = event.target === SHELL_EDIT || isCodeFile(event.target, cwd, config.ignore);
+      return counts ? [{ type: "edit", file: event.target, cwd, at }] : [];
+    }
+    const { check, args, masked } = event;
+    return [{ type: "verify", command, check, args, exitCode: exitCodeOf(input), masked, cwd, at }];
+  });
 }
 
 export function entriesFor(input, config, projectCommands) {
@@ -25,7 +29,7 @@ export function entriesFor(input, config, projectCommands) {
   if (EDIT_TOOLS.has(input.tool_name)) {
     if (input.hook_event_name !== "PostToolUse") return [];
     const file = toolInput.file_path ?? toolInput.notebook_path;
-    return typeof file === "string" && isCodeFile(file, input.cwd, config.ignore) ? [{ type: "edit", file, at }] : [];
+    return typeof file === "string" && isCodeFile(file, input.cwd, config.ignore) ? [{ type: "edit", file, cwd: input.cwd, at }] : [];
   }
   return SHELL_TOOLS.has(input.tool_name) ? shellEntries(input, config, projectCommands, at) : [];
 }

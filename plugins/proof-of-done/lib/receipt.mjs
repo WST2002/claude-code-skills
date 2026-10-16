@@ -6,10 +6,15 @@ function status(entry) {
   return entry.exitCode === 0 ? "✓ passed" : "? interrupted";
 }
 
-export function formatReceipt(entries) {
+function gateLine(entries, { enabled, verifyCommands }) {
+  if (!enabled) return "**Gate:** proof-of-done is disabled for this project";
+  const verdict = decide({ entries, verifyCommands });
+  return verdict.allow ? "**Gate:** ✅ would allow stopping" : `**Gate:** ⛔ would block — ${verdict.reason}`;
+}
+
+export function formatReceipt(entries, { enabled = true, verifyCommands = [] } = {}) {
   const files = [...new Set(entries.filter((e) => e.type === "edit").map((e) => e.file))];
   const runs = entries.filter((e) => e.type === "verify");
-  const verdict = decide({ entries });
   const lines = [
     "## Proof of Done receipt",
     "",
@@ -19,7 +24,7 @@ export function formatReceipt(entries) {
     `**Verification runs (${runs.length}):**`,
     ...(runs.length ? runs.map((e) => `- \`${e.command}\` ${status(e)} (${e.at})`) : ["- none"]),
     "",
-    verdict.allow ? "**Gate:** ✅ would allow stopping" : `**Gate:** ⛔ would block — ${verdict.reason}`,
+    gateLine(entries, { enabled, verifyCommands }),
   ];
   return `${lines.join("\n")}\n`;
 }

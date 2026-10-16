@@ -73,12 +73,21 @@ test("skip line with a too-short reason does not count", () => {
   assert.equal(decide({ entries: [edit()], lastMessage: "Verification: skipped — n/a" }).allow, false);
 });
 
+const checked = (entry, check, args = "") => ({ ...entry, check, args });
+
 test("a plain passing run supersedes an earlier masked run of the same check", () => {
-  const entries = [edit(), { ...run("printf x > a.js && npm test | tail", 0, true), key: "npm test" }, { ...run("npm test"), key: "npm test" }];
+  const entries = [edit(), checked(run("printf x > a.js && npm test | tail", 0, true), "npm test"), checked(run("npm test"), "npm test")];
   assert.deepEqual(decide({ entries }), { allow: true });
 });
 
-test("a plain passing run supersedes an earlier failing compound run of the same check", () => {
-  const entries = [edit(), { ...run("cd app && npm test", 1), key: "npm test" }, { ...run("npm test"), key: "npm test" }];
+test("a plain passing run supersedes an earlier failing run with arguments", () => {
+  const entries = [edit(), checked(run("npm test -- --ci", 1), "npm test", "-- --ci"), checked(run("npm test"), "npm test")];
   assert.deepEqual(decide({ entries }), { allow: true });
+});
+
+test("a filtered passing run does not clear a failing full run", () => {
+  const entries = [edit(), checked(run("npm test", 1), "npm test"), checked(run("npm test -- -t only-this"), "npm test", "-- -t only-this")];
+  const verdict = decide({ entries });
+  assert.equal(verdict.allow, false);
+  assert.match(verdict.reason, /`npm test` exited with code 1/);
 });

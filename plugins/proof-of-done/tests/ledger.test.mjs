@@ -24,6 +24,14 @@ test("corrupt lines are skipped", (t) => {
   assert.deepEqual(readLedger(file).map((e) => e.file), ["a.ts", "b.ts"]);
 });
 
+test("lines that parse but have the wrong shape are skipped", (t) => {
+  const file = ledgerPath(tempDir(t), "s");
+  appendEntry(file, { type: "edit", file: "a.ts" });
+  fs.appendFileSync(file, 'null\n42\n{"type":"edit"}\n{"type":"verify"}\n{"file":"x"}\n');
+  appendEntry(file, { type: "verify", command: "npm test", exitCode: 0 });
+  assert.deepEqual(readLedger(file).map((e) => e.type), ["edit", "verify"]);
+});
+
 test("session ids cannot escape the sessions folder", (t) => {
   const dataDir = tempDir(t);
   assert.equal(path.dirname(ledgerPath(dataDir, "../../evil")), path.join(dataDir, "sessions"));

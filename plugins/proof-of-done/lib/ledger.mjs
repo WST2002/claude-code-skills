@@ -25,11 +25,19 @@ export function readLedger(file) {
   return text.split("\n").flatMap((line) => {
     if (!line.trim()) return [];
     try {
-      return [JSON.parse(line)];
+      const entry = JSON.parse(line);
+      return isValidEntry(entry) ? [entry] : [];
     } catch {
       return [];
     }
   });
+}
+
+function isValidEntry(entry) {
+  if (entry === null || typeof entry !== "object") return false;
+  if (entry.type === "edit") return typeof entry.file === "string";
+  if (entry.type === "verify") return typeof entry.command === "string";
+  return false;
 }
 
 export function pruneOldLedgers(dataDir, now = Date.now()) {

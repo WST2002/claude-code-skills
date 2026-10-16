@@ -96,18 +96,24 @@ that exits non-zero arrives as `PostToolUseFailure`, whose `error` field starts 
 
 - **Code file:** any file except docs and assets (`.md`, `.txt`, images, `.lock`
   files, anything under `docs/`). Configurable.
-- **Verification command:** matches the project's detected commands (4.3) or a
-  built-in list: `npm|pnpm|yarn|bun (run )?(test|build|lint|typecheck|check)`,
+- **Shell commands are parsed, not searched.** A command is split on `&&`, `||`,
+  `;`, `|`, `&` and newlines, with quoted text ignored. A check counts only when a
+  segment *starts* with it (after `VAR=x` prefixes), so `git commit -m "fix npm test"`
+  is not a verification. Each check is recorded as `check` + `args`
+  (`npm test` + `-- -t foo`); redirections are not part of `args`.
+- **Verification command:** a segment that starts with one of the project's
+  detected commands (4.3, canonicalised so `npm run test` ≡ `npm test`) or a
+  built-in check: `npm|pnpm|yarn|bun (run )?(test|build|lint|typecheck|check)`,
   `npx (tsc|vitest|jest|eslint|playwright test)`, `pytest`, `go test`, `go build`,
   `cargo (test|build|check|clippy)`, `mvn (test|verify|package)`,
   `gradle(w)? (test|build|check)`, `dotnet (test|build)`, `make (test|check)`.
 - Exit code: `0` for `PostToolUse`; parsed from the first line of `error` for
   `PostToolUseFailure`. Interrupted or unparseable runs get `exitCode: null` and are
   treated as **not passing**.
-- **Masked runs:** a command whose result is hidden — piped into another command
-  without `set -o pipefail` (`npm test | tail`), or followed by `|| true`, `|| :`,
-  `|| exit 0` or a trailing `; true` — is recorded with `masked: true` and never
-  counts as passing.
+- **Masked runs:** a check whose exit code may not reach the shell is recorded with
+  `masked: true` and never counts as passing: piped into another command without
+  `pipefail` (`npm test | tail`), or followed by anything other than an `&&` chain
+  or `|| exit <non-zero>` (`; echo done`, `|| true`, `|| echo failed`, `&`).
 - Edits to files outside the project directory (`cwd`) are not recorded.
 - **Shell writes count as edits.** A shell command that redirects into a code file
   (`printf ... > src/a.js`) or changes files in place (`sed -i`, `tee`,
@@ -130,10 +136,10 @@ on each write.
    - None → **block**: "You changed N code files (list up to 5) but ran no
      verification since. Run: `<detected commands>`. Then report the results. If
      verification is impossible, end with `Verification: skipped — <reason>`."
-   - For each distinct check, take its latest run. A check is identified by the
-     verification it performs, not the full command text: `npm run test`,
-     `cd app && npm test` and `printf … > a.js && npm test | tail` are all the
-     check `npm test`, so a later plain run supersedes an earlier masked one. If any of those failed, was
+   - For each distinct check + arguments, take its latest run. A run with no
+     arguments supersedes every earlier run of the same check, so a plain
+     `npm test` clears an earlier masked or filtered one; a filtered run
+     (`npm test -- -t foo`) never clears a failing full run. If any of those failed, was
      interrupted, or was masked → **block** with that command and why
      ("`npm test` exited with code 1 after your last edit. Fix it or report the
      failure honestly.").
@@ -173,8 +179,10 @@ Read from the project root (`cwd`):
 
 ### 4.5 `/proof` command
 
-Prints the session's evidence receipt: files edited, each verification command with
-pass/fail and time, and whether the gate would currently allow a stop.
+Prints the evidence receipt of the most recent session in the current project
+(entries carry the project `cwd`): files edited, each verification command with
+pass/fail and time, and whether the gate would currently allow a stop, using the
+project's config and detected commands.
 
 ### 4.6 Skill (`skills/proof-of-done/SKILL.md` inside the plugin)
 

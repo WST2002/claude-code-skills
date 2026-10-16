@@ -1,18 +1,19 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import path from "node:path";
-import { SHELL_EDIT } from "../lib/classify.mjs";
 import { entriesFor } from "../lib/evidence.mjs";
+import { SHELL_EDIT } from "../lib/shell.mjs";
 
 const cwd = path.resolve("/work/app");
 const config = { enabled: true, verify: null, ignore: [], error: null };
 const payload = (overrides) => ({ cwd, session_id: "s", hook_event_name: "PostToolUse", ...overrides });
-const shapes = (entries) => entries.map(({ at, ...rest }) => rest);
+const shapes = (entries) => entries.map(({ at, cwd: _cwd, ...rest }) => rest);
 
-test("edit of a code file", () => {
+test("edit of a code file records the file and the project", () => {
   const [entry] = entriesFor(payload({ tool_name: "Edit", tool_input: { file_path: path.join(cwd, "src/a.ts") } }), config, []);
   assert.equal(entry.type, "edit");
   assert.equal(entry.file, path.join(cwd, "src/a.ts"));
+  assert.equal(entry.cwd, cwd);
 });
 
 test("notebook edits use notebook_path", () => {
@@ -26,7 +27,7 @@ test("edit of a doc is ignored", () => {
 
 test("successful verification run", () => {
   assert.deepEqual(shapes(entriesFor(payload({ tool_name: "Bash", tool_input: { command: "npm test" } }), config, [])), [
-    { type: "verify", command: "npm test", key: "npm test", exitCode: 0, masked: false },
+    { type: "verify", command: "npm test", check: "npm test", args: "", exitCode: 0, masked: false },
   ]);
 });
 
@@ -40,24 +41,22 @@ test("interrupted run has unknown exit code", () => {
   assert.equal(entry.exitCode, null);
 });
 
-test("masked run is flagged", () => {
-  assert.equal(entriesFor(payload({ tool_name: "Bash", tool_input: { command: "npm test | tail" } }), config, [])[0].masked, true);
-});
-
-test("shell write to a code file then a test in one command records both, in order", () => {
+test("shell write to a code file then a masked test records both, in order", () => {
   const command = "printf 'x' > src/add.mjs && npm test 2>&1 | tail -15";
   assert.deepEqual(shapes(entriesFor(payload({ tool_name: "Bash", tool_input: { command } }), config, [])), [
     { type: "edit", file: "src/add.mjs" },
-    { type: "verify", command, key: "npm test", exitCode: 0, masked: true },
+    { type: "verify", command, check: "npm test", args: "", exitCode: 0, masked: true },
   ]);
 });
 
-test("shell write to a doc is ignored", () => {
-  assert.deepEqual(entriesFor(payload({ tool_name: "Bash", tool_input: { command: "echo hi > notes.md" } }), config, []), []);
+test("shell writes to docs, logs or folders are ignored", () => {
+  for (const command of ["echo hi > notes.md", "npm test > out.log", "rm -rf node_modules"]) {
+    assert.deepEqual(entriesFor(payload({ tool_name: "Bash", tool_input: { command } }), config, []).filter((e) => e.type === "edit"), [], command);
+  }
 });
 
-test("in-place edits without a parseable target are recorded as a shell edit, even when the command fails", () => {
-  const [entry] = entriesFor(payload({ hook_event_name: "PostToolUseFailure", tool_name: "Bash", tool_input: { command: "sed -i s/a/b/ src/a.js" }, error: "Exit code 1" }), config, []);
+test("unknown-target edits are recorded even when the command fails", () => {
+  const [entry] = entriesFor(payload({ hook_event_name: "PostToolUseFailure", tool_name: "Bash", tool_input: { command: "git apply fix.patch" }, error: "Exit code 1" }), config, []);
   assert.deepEqual({ type: entry.type, file: entry.file }, { type: "edit", file: SHELL_EDIT });
 });
 

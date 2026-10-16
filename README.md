@@ -34,6 +34,25 @@ Or copy any folder from [`skills/`](skills) into `~/.claude/skills/`
 | [refactor-planner](skills/refactor-planner) | Refactor in small, safe, test-backed steps without changing behavior |
 | [proof-of-done-lite](skills/proof-of-done-lite) | Make the agent show test and build results before saying "done" |
 
+### Testing and QA
+
+| Skill | Use it to |
+|---|---|
+| [test-case-generator](skills/test-case-generator) | Turn a requirement or user story into manual test cases: positive, negative, boundary, permission and state |
+| [test-plan-writer](skills/test-plan-writer) | Write a risk-based test plan with scope, environments and measurable entry/exit criteria |
+| [bug-report-writer](skills/bug-report-writer) | Write bug reports developers can reproduce on the first try |
+| [playwright-e2e-tests](skills/playwright-e2e-tests) | Write reliable Playwright end-to-end tests with user-facing locators and no sleeps |
+| [api-test-writer](skills/api-test-writer) | Write API tests for status codes, schemas, validation, auth and side effects |
+| [flaky-test-fixer](skills/flaky-test-fixer) | Reproduce and fix tests that pass and fail without code changes |
+
+### Everyday development
+
+| Skill | Use it to |
+|---|---|
+| [codebase-onboarding](skills/codebase-onboarding) | Understand an unfamiliar codebase fast: how to run it, the map, one real request flow |
+| [dependency-upgrade](skills/dependency-upgrade) | Upgrade packages and frameworks in safe steps, following migration guides |
+| [changelog-writer](skills/changelog-writer) | Write release notes and pick the next version from git history |
+
 ### Security and performance
 
 | Skill | Use it to |

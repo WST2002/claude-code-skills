@@ -64,7 +64,7 @@ Run `git diff` and check it like a reviewer: off-by-one, null paths, error handl
 
 Stage only the files you changed for this ticket. Write the message in the convention shown by `git log --oneline -15` (Conventional Commits if the repository uses them). The subject says what changed; the body says why. Reference the ticket: `Fixes #<number>` for GitHub issues, the Jira key for Jira.
 
-Commit with plain `git commit` so the author is exactly the identity configured in this repository (`git config user.name` / `user.email`). Never pass `--author`, `-c user.name`, `-c user.email` or environment overrides, even if you know another name or email for the user. Do not add co-author trailers or tool attribution.
+Commit with plain `git commit` so the author is exactly the identity configured in this repository (`git config user.name` / `user.email`). Never pass `--author`, `-c user.name`, `-c user.email` or environment overrides, even if you know another name or email for the user, and do not suggest changing the author. Do not add co-author trailers or tool attribution.
 
 ## 10. Open a draft pull request
 

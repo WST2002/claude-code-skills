@@ -10,6 +10,12 @@ test("error words in the title also mean a fix", () => {
   assert.equal(branchName({ id: "PROJ-4", title: "Checkout crashes on empty cart", labels: [] }), "fix/proj-4-checkout-crashes-on-empty-cart");
 });
 
+test("wrong-behavior wording in the title means a fix", () => {
+  for (const title of ["Cart total ignores item quantity", "Shows 100 instead of 200", "Search does not return results", "Cannot upload avatar", "Incorrect tax on invoices"]) {
+    assert.match(branchName({ title, labels: [] }), /^fix\//, title);
+  }
+});
+
 test("everything else is a feature", () => {
   assert.equal(branchName({ id: "77", title: "Add CSV export to orders", labels: ["enhancement"] }), "feat/77-add-csv-export-to-orders");
 });

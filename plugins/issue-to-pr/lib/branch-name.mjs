@@ -1,5 +1,5 @@
 const FIX_LABELS = /^(bug|defect|regression|hotfix)$/i;
-const FIX_WORDS = /\b(bug|error|errors|fail|fails|failing|broken|crash|crashes|crashing|exception|500|wrong)\b/i;
+const FIX_WORDS = /\b(bug|error|errors|fail|fails|failing|broken|crash|crashes|crashing|exception|500|wrong|incorrect|ignores|ignored|instead of|does not|doesn't|cannot|can't|unable|regression)\b/i;
 const MAX_SLUG = 40;
 
 function slugify(text) {

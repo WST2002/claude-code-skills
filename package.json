@@ -1,5 +1,5 @@
 {
-  "name": "groundwork",
+  "name": "claude-code-skills",
   "private": true,
   "description": "Claude Code plugins and skills that make AI coding agents prove their work.",
   "scripts": {

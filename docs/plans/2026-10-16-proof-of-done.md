@@ -1,6 +1,6 @@
 # Proof of Done Implementation Plan
 
-**Goal:** Ship the `groundwork` marketplace repo with its first plugin, `proof-of-done`, which stops Claude Code from ending a turn after code edits unless verification ran and passed after the last edit.
+**Goal:** Ship the `claude-code-skills` marketplace repo with its first plugin, `proof-of-done`, which stops Claude Code from ending a turn after code edits unless verification ran and passed after the last edit.
 
 **Architecture:** Two hook scripts share a small, pure `lib/`. `record.mjs` (PostToolUse + PostToolUseFailure) appends evidence to a per-session JSON Lines ledger. `gate.mjs` (Stop + SubagentStop) reads the ledger and returns `{"decision":"block","reason":...}` when evidence is missing, failed, or masked. All decisions live in pure functions so they are unit-tested without spawning Claude.
 
@@ -16,7 +16,7 @@
 - Every component path stays inside its plugin folder (Claude Code rejects `..`).
 - Any internal hook error → allow the stop and write one line to stderr prefixed `proof-of-done: `.
 - Honest skip line: `Verification: skipped — <reason>` with a reason of at least 10 characters.
-- Config file: `.groundwork/proof-of-done.json` with keys `enabled`, `verify`, `ignore`.
+- Config file: `.claude/proof-of-done.json` with keys `enabled`, `verify`, `ignore`.
 - Ledger: `${CLAUDE_PLUGIN_DATA}/sessions/<session_id>.jsonl`, pruned after 7 days.
 - Commits: author `Wageesha Tripathi`, no co-author trailers, no tool attribution anywhere.
 - Line endings: LF (enforced by `.gitattributes`).
@@ -40,7 +40,7 @@
 | `tests/repo.test.mjs` | Marketplace ↔ plugin manifest consistency |
 | `plugins/proof-of-done/.claude-plugin/plugin.json` | Plugin manifest |
 | `plugins/proof-of-done/lib/classify.mjs` | Code-file, verify-command, masking and exit-code rules |
-| `plugins/proof-of-done/lib/config.mjs` | Load `.groundwork/proof-of-done.json` |
+| `plugins/proof-of-done/lib/config.mjs` | Load `.claude/proof-of-done.json` |
 | `plugins/proof-of-done/lib/detect.mjs` | Detect project verify commands |
 | `plugins/proof-of-done/lib/ledger.mjs` | Append/read/prune JSONL ledgers |
 | `plugins/proof-of-done/lib/decide.mjs` | Gate decision (pure) |
@@ -82,7 +82,7 @@ const readJson = (file) => JSON.parse(fs.readFileSync(path.join(root, file), "ut
 
 test("every marketplace entry points at a plugin with a matching manifest", () => {
   const marketplace = readJson(".claude-plugin/marketplace.json");
-  assert.equal(marketplace.name, "groundwork");
+  assert.equal(marketplace.name, "claude-code-skills");
   assert.ok(marketplace.plugins.length > 0);
   for (const entry of marketplace.plugins) {
     assert.match(entry.source, /^\.\/plugins\/[a-z0-9-]+$/);
@@ -104,7 +104,7 @@ Expected: FAIL with `ENOENT` for `.claude-plugin/marketplace.json`.
 `package.json`:
 ```json
 {
-  "name": "groundwork",
+  "name": "claude-code-skills",
   "private": true,
   "description": "Claude Code plugins and skills that make AI coding agents prove their work.",
   "scripts": {
@@ -132,7 +132,7 @@ node_modules/
 `.claude-plugin/marketplace.json`:
 ```json
 {
-  "name": "groundwork",
+  "name": "claude-code-skills",
   "owner": {
     "name": "Wageesha Tripathi",
     "url": "https://github.com/WST2002"
@@ -161,8 +161,8 @@ node_modules/
     "name": "Wageesha Tripathi",
     "url": "https://github.com/WST2002"
   },
-  "homepage": "https://github.com/WST2002/groundwork/tree/main/plugins/proof-of-done",
-  "repository": "https://github.com/WST2002/groundwork",
+  "homepage": "https://github.com/WST2002/claude-code-skills/tree/main/plugins/proof-of-done",
+  "repository": "https://github.com/WST2002/claude-code-skills",
   "license": "MIT",
   "keywords": ["verification", "testing", "hooks", "quality"]
 }
@@ -186,7 +186,7 @@ Expected: PASS, 1 test.
 
 ```bash
 git add -A
-git commit -m "Scaffold groundwork marketplace with proof-of-done manifest"
+git commit -m "Scaffold claude-code-skills marketplace with proof-of-done manifest"
 ```
 
 ---
@@ -409,7 +409,7 @@ git commit -m "Add code-file, verify-command and masking rules"
 
 **Interfaces:**
 - Produces:
-  - `CONFIG_PATH = ".groundwork/proof-of-done.json"`
+  - `CONFIG_PATH = ".claude/proof-of-done.json"`
   - `loadConfig(projectDir: string): { enabled: boolean, verify: string[] | null, ignore: string[], error: string | null }`
   - `detectVerifyCommands(projectDir: string): string[]`
   - `ledgerPath(dataDir: string, sessionId: string): string`
@@ -568,7 +568,7 @@ Expected: FAIL with `Cannot find module` for `config.mjs`, `detect.mjs`, `ledger
 import fs from "node:fs";
 import path from "node:path";
 
-export const CONFIG_PATH = ".groundwork/proof-of-done.json";
+export const CONFIG_PATH = ".claude/proof-of-done.json";
 
 const strings = (value) => (Array.isArray(value) ? value.filter((v) => typeof v === "string") : null);
 
@@ -1020,17 +1020,17 @@ test("subagent stop uses the same gate", (t) => {
 
 test("disabled by config: never blocks", (t) => {
   const { project, record, stop } = setup(t);
-  writeFiles(project, { ".groundwork/proof-of-done.json": { enabled: false } });
+  writeFiles(project, { ".claude/proof-of-done.json": { enabled: false } });
   record({ tool_name: "Edit", tool_input: { file_path: path.join(project, "src/a.js") } });
   assert.equal(stop().stdout, "");
 });
 
 test("invalid config: allows and explains on stderr", (t) => {
   const { project, stop } = setup(t);
-  writeFiles(project, { ".groundwork/proof-of-done.json": "{ nope" });
+  writeFiles(project, { ".claude/proof-of-done.json": "{ nope" });
   const result = stop();
   assert.equal(result.stdout, "");
-  assert.match(result.stderr, /^proof-of-done: \.groundwork\/proof-of-done\.json is invalid JSON/);
+  assert.match(result.stderr, /^proof-of-done: \.claude-code-skills\/proof-of-done\.json is invalid JSON/);
 });
 
 test("garbage stdin: no crash, allows, warns", (t) => {
@@ -1379,7 +1379,7 @@ Never say work is finished because the code looks right. Finish with evidence.
 
 1. After your last code change, run the checks that prove it works: the project's
    typecheck, lint, tests and build, or the commands listed in
-   `.groundwork/proof-of-done.json`.
+   `.claude/proof-of-done.json`.
 2. Run each check plainly. Do not pipe it into `tail`, `head` or `Select-Object`,
    and do not add `|| true`. A hidden exit code is not proof.
 3. If a check fails, fix it and run it again. If you cannot fix it, say so plainly.
@@ -1407,7 +1407,7 @@ description: Use before saying work is done, fixed, or complete after changing c
 # Proof of Done (lite)
 
 This is the instructions-only version. For enforcement that blocks the agent until
-checks pass, install the `proof-of-done` plugin from the groundwork marketplace.
+checks pass, install the `proof-of-done` plugin from the claude-code-skills marketplace.
 
 1. After your last code change, run the checks that prove it works: typecheck, lint,
    tests and build.
@@ -1427,25 +1427,25 @@ checks pass, install the `proof-of-done` plugin from the groundwork marketplace.
 
 `README.md`:
 ````markdown
-# groundwork
+# claude-code-skills
 
 Claude Code plugins and skills that make AI coding agents prove their work.
 
-> "Done!" — but nothing was built, tested, or run. groundwork makes the agent show
+> "Done!" — but nothing was built, tested, or run. claude-code-skills makes the agent show
 > evidence before it is allowed to say that.
 
 ## Install
 
 ```
-/plugin marketplace add WST2002/groundwork
-/plugin install proof-of-done@groundwork
+/plugin marketplace add WST2002/claude-code-skills
+/plugin install proof-of-done@claude-code-skills
 ```
 
 ## What's inside
 
 | Name | Type | What it does | Install |
 |---|---|---|---|
-| [proof-of-done](plugins/proof-of-done) | Plugin | Blocks the agent from finishing after code changes until tests, build or lint have passed after the last edit. | `/plugin install proof-of-done@groundwork` |
+| [proof-of-done](plugins/proof-of-done) | Plugin | Blocks the agent from finishing after code changes until tests, build or lint have passed after the last edit. | `/plugin install proof-of-done@claude-code-skills` |
 | [proof-of-done-lite](skills/proof-of-done-lite) | Skill | The same habits as instructions only, no enforcement. | Copy the folder into `~/.claude/skills/` |
 
 ## Plugins vs skills
@@ -1493,8 +1493,8 @@ The agent is blocked at most once per stop attempt, so it can never loop forever
 ## Install
 
 ```
-/plugin marketplace add WST2002/groundwork
-/plugin install proof-of-done@groundwork
+/plugin marketplace add WST2002/claude-code-skills
+/plugin install proof-of-done@claude-code-skills
 ```
 
 ## Commands
@@ -1504,7 +1504,7 @@ The agent is blocked at most once per stop attempt, so it can never loop forever
 
 ## Configuration (optional)
 
-Create `.groundwork/proof-of-done.json` in your project:
+Create `.claude/proof-of-done.json` in your project:
 
 ```json
 {
@@ -1669,8 +1669,8 @@ printf 'import { test } from "node:test";\nimport assert from "node:assert";\nim
 
 In a Claude Code session started in `~/personal/pod-sandbox`:
 ```
-/plugin marketplace add ../groundwork
-/plugin install proof-of-done@groundwork
+/plugin marketplace add ../claude-code-skills
+/plugin install proof-of-done@claude-code-skills
 ```
 
 - [ ] **Step 3: Exercise the gate**
@@ -1690,7 +1690,7 @@ Ask Claude to break the test on purpose and then stop. Expected: blocked with `e
 - [ ] **Step 6: Clean up**
 
 ```
-/plugin uninstall proof-of-done@groundwork
-/plugin marketplace remove groundwork
+/plugin uninstall proof-of-done@claude-code-skills
+/plugin marketplace remove claude-code-skills
 ```
 Delete `~/personal/pod-sandbox`.

@@ -22,8 +22,8 @@ The agent is blocked at most once per stop attempt, so it can never loop forever
 ## Install
 
 ```
-/plugin marketplace add WST2002/groundwork
-/plugin install proof-of-done@groundwork
+/plugin marketplace add WST2002/claude-code-skills
+/plugin install proof-of-done@claude-code-skills
 ```
 
 ## Commands
@@ -33,7 +33,7 @@ The agent is blocked at most once per stop attempt, so it can never loop forever
 
 ## Configuration (optional)
 
-Create `.groundwork/proof-of-done.json` in your project:
+Create `.claude/proof-of-done.json` in your project:
 
 ```json
 {

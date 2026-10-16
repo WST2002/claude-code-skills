@@ -2,7 +2,7 @@
 
 - **Status:** Draft for review
 - **Date:** 2026-10-16
-- **Repo:** `groundwork` (Claude Code plugin marketplace + standalone skills)
+- **Repo:** `claude-code-skills` (Claude Code plugin marketplace + standalone skills)
 
 ## 1. Problem
 
@@ -31,7 +31,7 @@ agents other than Claude Code, judging test quality.
 ## 3. Repository layout
 
 ```
-groundwork/
+claude-code-skills/
 ├── .claude-plugin/
 │   └── marketplace.json            # registry of every plugin in this repo
 ├── plugins/
@@ -161,7 +161,7 @@ Read from the project root (`cwd`):
 - Nothing found → the block message asks the agent to run whatever proves the change
   works and to show the output.
 
-### 4.4 Project config (`.groundwork/proof-of-done.json`, optional)
+### 4.4 Project config (`.claude/proof-of-done.json`, optional)
 
 ```json
 {
@@ -174,7 +174,7 @@ Read from the project root (`cwd`):
 - `verify` replaces auto-detection.
 - `ignore` adds globs to the non-code list.
 - Invalid JSON → the gate prints a clear error to stderr
-  (`proof-of-done: .groundwork/proof-of-done.json is invalid JSON: <detail>`) and
+  (`proof-of-done: .claude/proof-of-done.json is invalid JSON: <detail>`) and
   allows the stop.
 
 ### 4.5 `/proof` command
@@ -224,8 +224,8 @@ guidance without the hooks, for people who install skills by copying folders.
 
 - Install:
   ```
-  /plugin marketplace add WST2002/groundwork
-  /plugin install proof-of-done@groundwork
+  /plugin marketplace add WST2002/claude-code-skills
+  /plugin install proof-of-done@claude-code-skills
   ```
 - Lite skill: copy `skills/proof-of-done-lite/` into `~/.claude/skills/`.
 - Repo topics: `claude-code`, `claude-code-plugin`, `claude-skills`, `agent-skills`,

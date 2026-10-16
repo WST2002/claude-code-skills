@@ -9,7 +9,7 @@ Never say work is finished because the code looks right. Finish with evidence.
 
 1. After your last code change, run the checks that prove it works: the project's
    typecheck, lint, tests and build, or the commands listed in
-   `.groundwork/proof-of-done.json`.
+   `.claude/proof-of-done.json`.
 2. Run each check plainly. Do not pipe it into `tail`, `head` or `Select-Object`,
    and do not add `|| true`. A hidden exit code is not proof.
 3. If a check fails, fix it and run it again. If you cannot fix it, say so plainly.

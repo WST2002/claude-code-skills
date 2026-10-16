@@ -118,17 +118,17 @@ test("subagent stop uses the same gate", (t) => {
 
 test("disabled by config: never blocks", (t) => {
   const { project, record, stop } = setup(t);
-  writeFiles(project, { ".groundwork/proof-of-done.json": { enabled: false } });
+  writeFiles(project, { ".claude/proof-of-done.json": { enabled: false } });
   record({ tool_name: "Edit", tool_input: { file_path: path.join(project, "src/a.js") } });
   assert.equal(stop().stdout, "");
 });
 
 test("invalid config: allows and explains on stderr", (t) => {
   const { project, stop } = setup(t);
-  writeFiles(project, { ".groundwork/proof-of-done.json": "{ nope" });
+  writeFiles(project, { ".claude/proof-of-done.json": "{ nope" });
   const result = stop();
   assert.equal(result.stdout, "");
-  assert.match(result.stderr, /^proof-of-done: \.groundwork\/proof-of-done\.json is invalid JSON/);
+  assert.match(result.stderr, /^proof-of-done: \.claude\/proof-of-done\.json is invalid JSON/);
 });
 
 test("garbage stdin: no crash, allows, warns", (t) => {

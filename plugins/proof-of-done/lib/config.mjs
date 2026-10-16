@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-export const CONFIG_PATH = ".groundwork/proof-of-done.json";
+export const CONFIG_PATH = ".claude/proof-of-done.json";
 
 const strings = (value) => (Array.isArray(value) ? value.filter((v) => typeof v === "string") : null);
 

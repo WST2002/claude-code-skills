@@ -8,7 +8,7 @@ const readJson = (file) => JSON.parse(fs.readFileSync(path.join(root, file), "ut
 
 test("every marketplace entry points at a plugin with a matching manifest", () => {
   const marketplace = readJson(".claude-plugin/marketplace.json");
-  assert.equal(marketplace.name, "groundwork");
+  assert.equal(marketplace.name, "claude-code-skills");
   assert.ok(marketplace.plugins.length > 0);
   for (const entry of marketplace.plugins) {
     assert.match(entry.source, /^\.\/plugins\/[a-z0-9-]+$/);

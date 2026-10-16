@@ -6,7 +6,7 @@ description: Use before saying work is done, fixed, or complete after changing c
 # Proof of Done (lite)
 
 This is the instructions-only version. For enforcement that blocks the agent until
-checks pass, install the `proof-of-done` plugin from the groundwork marketplace.
+checks pass, install the `proof-of-done` plugin from the claude-code-skills marketplace.
 
 1. After your last code change, run the checks that prove it works: typecheck, lint,
    tests and build.

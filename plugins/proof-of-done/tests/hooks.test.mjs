@@ -1,0 +1,94 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import path from "node:path";
+import { tempDir, writeFiles } from "./helpers.mjs";
+
+const scripts = path.resolve(import.meta.dirname, "../scripts");
+
+function runHook(script, input, dataDir) {
+  const result = spawnSync(process.execPath, [path.join(scripts, script)], {
+    input: JSON.stringify(input),
+    env: { ...process.env, CLAUDE_PLUGIN_DATA: dataDir },
+    encoding: "utf8",
+  });
+  return { code: result.status, stdout: result.stdout, stderr: result.stderr };
+}
+
+function setup(t) {
+  const project = tempDir(t);
+  const dataDir = tempDir(t);
+  writeFiles(project, { "package.json": { scripts: { test: "node --test" } } });
+  const base = { session_id: "sess-1", cwd: project };
+  const record = (input) => runHook("record.mjs", { ...base, hook_event_name: "PostToolUse", ...input }, dataDir);
+  const stop = (input = {}) => runHook("gate.mjs", { ...base, hook_event_name: "Stop", stop_hook_active: false, last_assistant_message: "Done.", ...input }, dataDir);
+  return { project, record, stop };
+}
+
+const block = (result) => (result.stdout ? JSON.parse(result.stdout) : null);
+
+test("nothing edited: stop allowed", (t) => {
+  const { stop } = setup(t);
+  const result = stop();
+  assert.equal(result.code, 0);
+  assert.equal(result.stdout, "");
+});
+
+test("edit then stop: blocked with the project's command", (t) => {
+  const { project, record, stop } = setup(t);
+  record({ tool_name: "Edit", tool_input: { file_path: path.join(project, "src/a.js") } });
+  const verdict = block(stop());
+  assert.equal(verdict.decision, "block");
+  assert.match(verdict.reason, /`npm run test`/);
+});
+
+test("edit, failed test, stop: blocked with exit code", (t) => {
+  const { project, record, stop } = setup(t);
+  record({ tool_name: "Edit", tool_input: { file_path: path.join(project, "src/a.js") } });
+  record({ hook_event_name: "PostToolUseFailure", tool_name: "Bash", tool_input: { command: "npm run test" }, error: "Exit code 1\nfail" });
+  assert.match(block(stop()).reason, /exited with code 1/);
+});
+
+test("edit, passing test, stop: allowed", (t) => {
+  const { project, record, stop } = setup(t);
+  record({ tool_name: "Edit", tool_input: { file_path: path.join(project, "src/a.js") } });
+  record({ tool_name: "Bash", tool_input: { command: "npm run test" } });
+  assert.equal(stop().stdout, "");
+});
+
+test("second stop attempt is allowed", (t) => {
+  const { project, record, stop } = setup(t);
+  record({ tool_name: "Edit", tool_input: { file_path: path.join(project, "src/a.js") } });
+  assert.equal(stop({ stop_hook_active: true }).stdout, "");
+});
+
+test("subagent stop uses the same gate", (t) => {
+  const { project, record, stop } = setup(t);
+  record({ tool_name: "Write", tool_input: { file_path: path.join(project, "src/b.js") } });
+  assert.equal(block(stop({ hook_event_name: "SubagentStop" })).decision, "block");
+});
+
+test("disabled by config: never blocks", (t) => {
+  const { project, record, stop } = setup(t);
+  writeFiles(project, { ".groundwork/proof-of-done.json": { enabled: false } });
+  record({ tool_name: "Edit", tool_input: { file_path: path.join(project, "src/a.js") } });
+  assert.equal(stop().stdout, "");
+});
+
+test("invalid config: allows and explains on stderr", (t) => {
+  const { project, stop } = setup(t);
+  writeFiles(project, { ".groundwork/proof-of-done.json": "{ nope" });
+  const result = stop();
+  assert.equal(result.stdout, "");
+  assert.match(result.stderr, /^proof-of-done: \.groundwork\/proof-of-done\.json is invalid JSON/);
+});
+
+test("garbage stdin: no crash, allows, warns", (t) => {
+  const dataDir = tempDir(t);
+  for (const script of ["record.mjs", "gate.mjs"]) {
+    const result = spawnSync(process.execPath, [path.join(scripts, script)], { input: "not json", env: { ...process.env, CLAUDE_PLUGIN_DATA: dataDir }, encoding: "utf8" });
+    assert.equal(result.status, 0, script);
+    assert.equal(result.stdout, "", script);
+    assert.match(result.stderr, /^proof-of-done: /, script);
+  }
+});

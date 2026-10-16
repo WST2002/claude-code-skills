@@ -60,3 +60,7 @@ Order by risk: data loss and integrity first, then performance, then design. Whe
 - Polymorphic `owner_type` + `owner_id` with no referential integrity.
 - Adding an index for every column instead of for actual queries.
 - Reviewing the schema without reading the queries that use it.
+
+---
+
+Made by **Wageesha Tripathi** · [LinkedIn](https://www.linkedin.com/in/wst2002/) · [Email](mailto:tripathiwageesha2002@gmail.com) · [More skills](https://github.com/WST2002/claude-code-skills)

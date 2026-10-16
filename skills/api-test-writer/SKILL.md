@@ -71,3 +71,7 @@ describe("POST /orders", () => {
 - Tests that depend on data created by another test.
 - Never testing authorization with a second user.
 - Hitting production or shared environments with destructive tests.
+
+---
+
+Made by **Wageesha Tripathi** · [LinkedIn](https://www.linkedin.com/in/wst2002/) · [Email](mailto:tripathiwageesha2002@gmail.com) · [More skills](https://github.com/WST2002/claude-code-skills)

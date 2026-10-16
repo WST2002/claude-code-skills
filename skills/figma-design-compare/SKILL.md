@@ -58,3 +58,7 @@ Then **Missing or extra elements**, then **Matches** (what was checked and is co
 - Reading the wrong Figma variant or an outdated frame. Confirm the node id and last-modified date.
 - Reporting differences in placeholder text or images as design defects.
 - Fixing values with magic numbers when the project has design tokens for them.
+
+---
+
+Made by **Wageesha Tripathi** · [LinkedIn](https://www.linkedin.com/in/wst2002/) · [Email](mailto:tripathiwageesha2002@gmail.com) · [More skills](https://github.com/WST2002/claude-code-skills)

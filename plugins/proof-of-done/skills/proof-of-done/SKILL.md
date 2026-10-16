@@ -25,3 +25,7 @@ Never say work is finished because the code looks right. Finish with evidence.
    Verification: skipped — <the specific reason>
 
 Use `/proof` to see what has been recorded in this session.
+
+---
+
+Made by **Wageesha Tripathi** · [LinkedIn](https://www.linkedin.com/in/wst2002/) · [Email](mailto:tripathiwageesha2002@gmail.com) · [More skills](https://github.com/WST2002/claude-code-skills)

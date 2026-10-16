@@ -64,3 +64,7 @@ A test plan decides where testing effort goes and when the product is good enoug
 - No out-of-scope section, so expectations differ.
 - Copying a generic template that does not mention the actual features.
 - Forgetting regression of untouched areas that share code with the change.
+
+---
+
+Made by **Wageesha Tripathi** · [LinkedIn](https://www.linkedin.com/in/wst2002/) · [Email](mailto:tripathiwageesha2002@gmail.com) · [More skills](https://github.com/WST2002/claude-code-skills)

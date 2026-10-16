@@ -48,3 +48,7 @@ End with **Quick wins** (under an hour each) and **Already good** (what you chec
 - Memoizing everything instead of fixing the one component that re-renders a large list.
 - Ignoring third-party scripts, which often cost more than the app itself.
 - Claiming exact gains without measurement; label estimates.
+
+---
+
+Made by **Wageesha Tripathi** · [LinkedIn](https://www.linkedin.com/in/wst2002/) · [Email](mailto:tripathiwageesha2002@gmail.com) · [More skills](https://github.com/WST2002/claude-code-skills)

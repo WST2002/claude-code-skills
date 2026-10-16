@@ -56,3 +56,7 @@ test("user applies a coupon at checkout", async ({ page }) => {
 - Selectors tied to styling classes that change with design updates.
 - Shared test accounts mutated by parallel tests.
 - Retrying flaky tests instead of fixing the wait condition.
+
+---
+
+Made by **Wageesha Tripathi** · [LinkedIn](https://www.linkedin.com/in/wst2002/) · [Email](mailto:tripathiwageesha2002@gmail.com) · [More skills](https://github.com/WST2002/claude-code-skills)

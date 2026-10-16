@@ -53,3 +53,7 @@ Auto-detection covers npm/pnpm/yarn/bun scripts (`typecheck`, `lint`, `test`,
 ## Requirements
 
 Node.js 18 or newer on your `PATH`.
+
+---
+
+Made by **Wageesha Tripathi** · [LinkedIn](https://www.linkedin.com/in/wst2002/) · [Email](mailto:tripathiwageesha2002@gmail.com) · [More skills](https://github.com/WST2002/claude-code-skills)

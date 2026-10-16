@@ -55,3 +55,7 @@ Then: **Search Console steps** if the site is not verified (verify, submit sitem
 - Canonical tags pointing to the wrong domain or to a localhost URL.
 - Sitemap listing redirected or `noindex` pages.
 - Keyword stuffing instead of writing for the search intent.
+
+---
+
+Made by **Wageesha Tripathi** · [LinkedIn](https://www.linkedin.com/in/wst2002/) · [Email](mailto:tripathiwageesha2002@gmail.com) · [More skills](https://github.com/WST2002/claude-code-skills)

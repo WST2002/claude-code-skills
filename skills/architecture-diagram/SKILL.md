@@ -64,3 +64,7 @@ flowchart LR
 - Arrows without labels.
 - Including planned or imagined components as if they exist.
 - Mermaid syntax errors: quote labels containing parentheses or special characters, for example `a["Auth (JWT)"]`.
+
+---
+
+Made by **Wageesha Tripathi** · [LinkedIn](https://www.linkedin.com/in/wst2002/) · [Email](mailto:tripathiwageesha2002@gmail.com) · [More skills](https://github.com/WST2002/claude-code-skills)

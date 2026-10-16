@@ -52,3 +52,7 @@ Finish with a short **Consistency summary** (casing, error shape, pagination, ve
 - Recommending a redesign when a backward-compatible addition would do.
 - Calling a change safe because the server code still works: check what existing clients send and expect.
 - Using 500 for validation errors or 404 for permission failures without deciding deliberately.
+
+---
+
+Made by **Wageesha Tripathi** · [LinkedIn](https://www.linkedin.com/in/wst2002/) · [Email](mailto:tripathiwageesha2002@gmail.com) · [More skills](https://github.com/WST2002/claude-code-skills)

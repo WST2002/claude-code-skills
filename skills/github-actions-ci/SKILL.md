@@ -83,3 +83,7 @@ Services for integration tests:
 - `pull_request_target` with checkout of the PR code: gives untrusted code access to secrets.
 - Deploying from a workflow that does not depend on tests passing.
 - Hiding failures with `continue-on-error: true` or `|| true`.
+
+---
+
+Made by **Wageesha Tripathi** · [LinkedIn](https://www.linkedin.com/in/wst2002/) · [Email](mailto:tripathiwageesha2002@gmail.com) · [More skills](https://github.com/WST2002/claude-code-skills)

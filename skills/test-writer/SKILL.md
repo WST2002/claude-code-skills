@@ -51,3 +51,7 @@ Run: <command> → <N passed>
 - Asserting that a mock was called instead of checking the result.
 - Writing tests and not running them.
 - Testing framework code or trivial getters instead of the logic that can break.
+
+---
+
+Made by **Wageesha Tripathi** · [LinkedIn](https://www.linkedin.com/in/wst2002/) · [Email](mailto:tripathiwageesha2002@gmail.com) · [More skills](https://github.com/WST2002/claude-code-skills)

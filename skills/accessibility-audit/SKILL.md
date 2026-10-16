@@ -55,3 +55,7 @@ Critical = blocks a task for some users (cannot submit a form by keyboard). End 
 - `aria-label` that contradicts the visible text.
 - `role="button"` added without Enter and Space key handling.
 - Claiming WCAG compliance from an automated scan alone.
+
+---
+
+Made by **Wageesha Tripathi** · [LinkedIn](https://www.linkedin.com/in/wst2002/) · [Email](mailto:tripathiwageesha2002@gmail.com) · [More skills](https://github.com/WST2002/claude-code-skills)

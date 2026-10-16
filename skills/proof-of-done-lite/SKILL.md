@@ -22,3 +22,7 @@ checks pass, install the `proof-of-done` plugin from the claude-code-skills mark
 5. If no check can run, end with one line that states why:
 
    Verification: skipped — <the specific reason>
+
+---
+
+Made by **Wageesha Tripathi** · [LinkedIn](https://www.linkedin.com/in/wst2002/) · [Email](mailto:tripathiwageesha2002@gmail.com) · [More skills](https://github.com/WST2002/claude-code-skills)

@@ -50,3 +50,7 @@ If Docker is not available to run, say the files are unverified.
 - Using a full OS image (`node:22`) for runtime when `-slim` or `-alpine` works.
 - App listening on `localhost` inside the container; it must bind to `0.0.0.0`.
 - Compose `depends_on` without a healthcheck, so the app starts before the database is ready.
+
+---
+
+Made by **Wageesha Tripathi** · [LinkedIn](https://www.linkedin.com/in/wst2002/) · [Email](mailto:tripathiwageesha2002@gmail.com) · [More skills](https://github.com/WST2002/claude-code-skills)

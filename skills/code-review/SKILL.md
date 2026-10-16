@@ -52,3 +52,7 @@ If you find no defects, say `No defects found` and list what you checked. Do not
 - Flagging intentional behavior as a bug instead of asking.
 - Saying "consider adding tests" without naming the case that is untested.
 - Approving without reading changed tests: a weakened assertion is a defect.
+
+---
+
+Made by **Wageesha Tripathi** · [LinkedIn](https://www.linkedin.com/in/wst2002/) · [Email](mailto:tripathiwageesha2002@gmail.com) · [More skills](https://github.com/WST2002/claude-code-skills)

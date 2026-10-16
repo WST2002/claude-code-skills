@@ -55,3 +55,7 @@ Not upgraded: <package — reason, e.g. blocked by peer dependency>
 - Silencing deprecation warnings instead of fixing them.
 - Declaring success because it compiles; run the tests and the app.
 - Using `npm audit fix --force`, which can jump major versions without notice.
+
+---
+
+Made by **Wageesha Tripathi** · [LinkedIn](https://www.linkedin.com/in/wst2002/) · [Email](mailto:tripathiwageesha2002@gmail.com) · [More skills](https://github.com/WST2002/claude-code-skills)

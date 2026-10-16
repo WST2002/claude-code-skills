@@ -108,3 +108,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Ideas for new skills are welcome as issu
 ## License
 
 MIT © Wageesha Tripathi
+
+---
+
+Made by **Wageesha Tripathi** · [LinkedIn](https://www.linkedin.com/in/wst2002/) · [Email](mailto:tripathiwageesha2002@gmail.com)

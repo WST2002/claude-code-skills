@@ -53,3 +53,7 @@ End with **Checked and clean:** the classes you searched that had no findings. I
 - Missing authorization bugs (IDOR) because every route "has auth" — check that the record belongs to the caller.
 - Listing generic advice ("use HTTPS") instead of findings in this code.
 - Stopping after the first file. Audit every entry point.
+
+---
+
+Made by **Wageesha Tripathi** · [LinkedIn](https://www.linkedin.com/in/wst2002/) · [Email](mailto:tripathiwageesha2002@gmail.com) · [More skills](https://github.com/WST2002/claude-code-skills)

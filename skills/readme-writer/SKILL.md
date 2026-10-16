@@ -42,3 +42,7 @@ When improving an existing README, keep correct content, fix what is wrong or st
 - Documenting scripts or flags that were renamed or never existed.
 - Copying the whole API reference into the README.
 - Wrong license name compared with the LICENSE file.
+
+---
+
+Made by **Wageesha Tripathi** · [LinkedIn](https://www.linkedin.com/in/wst2002/) · [Email](mailto:tripathiwageesha2002@gmail.com) · [More skills](https://github.com/WST2002/claude-code-skills)

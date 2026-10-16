@@ -54,3 +54,7 @@ After executing: the list of commits and the test result after the last one.
 - "While I am here" behavior changes mixed into the refactor.
 - Abstracting for imagined future needs; extract only what has two real callers.
 - Renaming public APIs without a deprecation path for external users.
+
+---
+
+Made by **Wageesha Tripathi** · [LinkedIn](https://www.linkedin.com/in/wst2002/) · [Email](mailto:tripathiwageesha2002@gmail.com) · [More skills](https://github.com/WST2002/claude-code-skills)

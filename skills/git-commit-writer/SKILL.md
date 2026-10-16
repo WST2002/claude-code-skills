@@ -58,3 +58,7 @@ Refs #482
 - One commit for unrelated changes, which makes reverts and reviews harder.
 - Adding attribution or co-author trailers the user did not ask for.
 - Committing when the user only asked for a message.
+
+---
+
+Made by **Wageesha Tripathi** · [LinkedIn](https://www.linkedin.com/in/wst2002/) · [Email](mailto:tripathiwageesha2002@gmail.com) · [More skills](https://github.com/WST2002/claude-code-skills)

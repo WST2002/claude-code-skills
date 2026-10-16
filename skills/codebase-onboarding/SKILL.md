@@ -55,3 +55,7 @@ When the user asks a narrower question ("where is checkout implemented?"), answe
 - Listing commands from memory instead of from the scripts that exist.
 - Missing the one required service or environment variable that blocks first run.
 - Reading only the README, which is often out of date; trust code and CI first.
+
+---
+
+Made by **Wageesha Tripathi** · [LinkedIn](https://www.linkedin.com/in/wst2002/) · [Email](mailto:tripathiwageesha2002@gmail.com) · [More skills](https://github.com/WST2002/claude-code-skills)

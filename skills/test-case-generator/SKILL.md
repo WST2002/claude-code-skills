@@ -45,3 +45,7 @@ If the user's team uses a specific tool (TestRail, Zephyr, Xray, Excel), match i
 - Steps that depend on knowledge only the writer has.
 - Combining several checks in one case, so a failure does not show what broke.
 - Guessing business rules instead of listing them as open questions.
+
+---
+
+Made by **Wageesha Tripathi** · [LinkedIn](https://www.linkedin.com/in/wst2002/) · [Email](mailto:tripathiwageesha2002@gmail.com) · [More skills](https://github.com/WST2002/claude-code-skills)

@@ -50,3 +50,7 @@ If the root cause is not found yet, report what was ruled out and the next exper
 - Fixing the symptom (adding a null check) while the bad data still comes from upstream.
 - Trying a third fix after two failed ones without new evidence. Step back and re-read the evidence.
 - Declaring it fixed without a test that failed before the fix.
+
+---
+
+Made by **Wageesha Tripathi** · [LinkedIn](https://www.linkedin.com/in/wst2002/) · [Email](mailto:tripathiwageesha2002@gmail.com) · [More skills](https://github.com/WST2002/claude-code-skills)

@@ -1,0 +1,13 @@
+{
+  "name": "proof-of-done",
+  "version": "0.1.0",
+  "description": "Blocks the agent from finishing after code changes until tests, build or lint have passed.",
+  "author": {
+    "name": "Wageesha Tripathi",
+    "url": "https://github.com/WST2002"
+  },
+  "homepage": "https://github.com/WST2002/groundwork/tree/main/plugins/proof-of-done",
+  "repository": "https://github.com/WST2002/groundwork",
+  "license": "MIT",
+  "keywords": ["verification", "testing", "hooks", "quality"]
+}

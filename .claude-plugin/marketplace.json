@@ -1,0 +1,18 @@
+{
+  "name": "groundwork",
+  "owner": {
+    "name": "Wageesha Tripathi",
+    "url": "https://github.com/WST2002"
+  },
+  "description": "Plugins and skills that make AI coding agents prove their work.",
+  "plugins": [
+    {
+      "name": "proof-of-done",
+      "source": "./plugins/proof-of-done",
+      "description": "Blocks the agent from finishing after code changes until tests, build or lint have passed.",
+      "version": "0.1.0",
+      "category": "quality",
+      "tags": ["verification", "testing", "hooks"]
+    }
+  ]
+}

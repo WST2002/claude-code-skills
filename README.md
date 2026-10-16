@@ -24,18 +24,48 @@ Or copy any folder from [`skills/`](skills) into `~/.claude/skills/`
 
 ## Skills
 
+### Code quality
+
+| Skill | Use it to |
+|---|---|
+| [code-review](skills/code-review) | Review a PR, branch or diff for real defects, each with a concrete failing scenario |
+| [bug-debugger](skills/bug-debugger) | Find the root cause of a bug, fix it, and prove the fix with a regression test |
+| [test-writer](skills/test-writer) | Write tests that fail when behavior breaks, in your project's framework and style |
+| [refactor-planner](skills/refactor-planner) | Refactor in small, safe, test-backed steps without changing behavior |
+| [proof-of-done-lite](skills/proof-of-done-lite) | Make the agent show test and build results before saying "done" |
+
+### Security and performance
+
 | Skill | Use it to |
 |---|---|
 | [security-audit](skills/security-audit) | Find exploitable vulnerabilities in any codebase, with file:line evidence, attack scenario and fix |
-| [code-review](skills/code-review) | Review a PR, branch or diff for real defects, each with a concrete failing scenario |
-| [database-schema-design](skills/database-schema-design) | Design a schema from scratch or review one for integrity, indexes and safe migrations |
-| [figma-design-compare](skills/figma-design-compare) | Check a website, web app or mobile screen against its Figma frame: screenshots plus exact font, color, spacing and size values |
 | [web-performance-audit](skills/web-performance-audit) | Find why a site is slow, tied to LCP, INP, CLS and bundle size, with expected gains |
+| [accessibility-audit](skills/accessibility-audit) | Check keyboard, screen reader, contrast and ARIA issues mapped to WCAG 2.2 AA |
+| [seo-audit](skills/seo-audit) | Make pages crawlable and indexable: meta tags, canonical, sitemap, structured data |
+
+### Design and architecture
+
+| Skill | Use it to |
+|---|---|
+| [figma-design-compare](skills/figma-design-compare) | Check a website, web app or mobile screen against its Figma frame: screenshots plus exact font, color, spacing and size values |
+| [database-schema-design](skills/database-schema-design) | Design a schema from scratch or review one for integrity, indexes and safe migrations |
 | [api-design-review](skills/api-design-review) | Design or review REST APIs: naming, status codes, errors, pagination, breaking changes |
+| [architecture-diagram](skills/architecture-diagram) | Draw system, sequence, ERD or deployment diagrams in Mermaid, from the real code |
+
+### DevOps
+
+| Skill | Use it to |
+|---|---|
+| [dockerize-app](skills/dockerize-app) | Write a small, secure Dockerfile and docker-compose for Node, Python, Java or Go, and verify it runs |
+| [github-actions-ci](skills/github-actions-ci) | Set up or fix GitHub Actions CI with caching, services and least-privilege permissions |
+
+### Writing
+
+| Skill | Use it to |
+|---|---|
 | [git-commit-writer](skills/git-commit-writer) | Write commit messages that match your repo's convention and split mixed changes |
 | [readme-writer](skills/readme-writer) | Write a README from the real codebase, with verified commands and nothing invented |
 | [prd-writer](skills/prd-writer) | Write a PRD with evidence, measurable goals and testable acceptance criteria |
-| [proof-of-done-lite](skills/proof-of-done-lite) | Make the agent show test and build results before saying "done" |
 
 Every skill uses the same approach: a clear method, a fixed output format, and a
 verification step so results are specific and low on false positives.

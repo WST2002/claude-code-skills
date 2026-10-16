@@ -19,8 +19,16 @@ Or copy any folder from [`skills/`](skills) into `~/.claude/skills/`
 
 ```
 /plugin marketplace add WST2002/claude-code-skills
+/plugin install issue-to-pr@claude-code-skills
 /plugin install proof-of-done@claude-code-skills
 ```
+
+## Plugins
+
+| Plugin | What it does |
+|---|---|
+| [issue-to-pr](plugins/issue-to-pr) | `/fix-issue 123` — from a GitHub issue, Jira ticket or description to a tested fix and a draft pull request, in one command |
+| [proof-of-done](plugins/proof-of-done) | Blocks the agent from finishing after code changes until tests, build or lint have passed after the last edit |
 
 ## Skills
 
@@ -88,12 +96,6 @@ Or copy any folder from [`skills/`](skills) into `~/.claude/skills/`
 
 Every skill uses the same approach: a clear method, a fixed output format, and a
 verification step so results are specific and low on false positives.
-
-## Plugins
-
-| Plugin | What it does |
-|---|---|
-| [proof-of-done](plugins/proof-of-done) | Blocks the agent from finishing after code changes until tests, build or lint have passed after the last edit. Requires Node.js 18+. |
 
 ## Plugins vs skills
 

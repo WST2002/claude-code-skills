@@ -1,0 +1,14 @@
+{
+  "name": "issue-to-pr",
+  "version": "0.1.0",
+  "description": "One command from a GitHub issue, Jira ticket or bug description to a tested fix and a draft pull request.",
+  "author": {
+    "name": "Wageesha Tripathi",
+    "email": "tripathiwageesha2002@gmail.com",
+    "url": "https://www.linkedin.com/in/wst2002/"
+  },
+  "homepage": "https://github.com/WST2002/claude-code-skills/tree/main/plugins/issue-to-pr",
+  "repository": "https://github.com/WST2002/claude-code-skills",
+  "license": "MIT",
+  "keywords": ["github", "issues", "pull-request", "jira", "automation", "bug-fix"]
+}

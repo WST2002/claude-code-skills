@@ -18,6 +18,19 @@
         "testing",
         "hooks"
       ]
+    },
+    {
+      "name": "issue-to-pr",
+      "source": "./plugins/issue-to-pr",
+      "description": "One command from a GitHub issue, Jira ticket or bug description to a tested fix and a draft pull request.",
+      "version": "0.1.0",
+      "category": "productivity",
+      "tags": [
+        "github",
+        "pull-request",
+        "jira",
+        "automation"
+      ]
     }
   ]
 }

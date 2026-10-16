@@ -29,6 +29,7 @@ Or copy any folder from [`skills/`](skills) into `~/.claude/skills/`
 | [security-audit](skills/security-audit) | Find exploitable vulnerabilities in any codebase, with file:line evidence, attack scenario and fix |
 | [code-review](skills/code-review) | Review a PR, branch or diff for real defects, each with a concrete failing scenario |
 | [database-schema-design](skills/database-schema-design) | Design a schema from scratch or review one for integrity, indexes and safe migrations |
+| [figma-design-compare](skills/figma-design-compare) | Check a website, web app or mobile screen against its Figma frame: screenshots plus exact font, color, spacing and size values |
 | [web-performance-audit](skills/web-performance-audit) | Find why a site is slow, tied to LCP, INP, CLS and bundle size, with expected gains |
 | [api-design-review](skills/api-design-review) | Design or review REST APIs: naming, status codes, errors, pagination, breaking changes |
 | [git-commit-writer](skills/git-commit-writer) | Write commit messages that match your repo's convention and split mixed changes |

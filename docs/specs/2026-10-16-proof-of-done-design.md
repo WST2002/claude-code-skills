@@ -130,7 +130,10 @@ on each write.
    - None → **block**: "You changed N code files (list up to 5) but ran no
      verification since. Run: `<detected commands>`. Then report the results. If
      verification is impossible, end with `Verification: skipped — <reason>`."
-   - For each distinct command, take its latest run. If any of those failed, was
+   - For each distinct check, take its latest run. A check is identified by the
+     verification it performs, not the full command text: `npm run test`,
+     `cd app && npm test` and `printf … > a.js && npm test | tail` are all the
+     check `npm test`, so a later plain run supersedes an earlier masked one. If any of those failed, was
      interrupted, or was masked → **block** with that command and why
      ("`npm test` exited with code 1 after your last edit. Fix it or report the
      failure honestly.").

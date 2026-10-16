@@ -26,7 +26,7 @@ test("edit of a doc is ignored", () => {
 
 test("successful verification run", () => {
   assert.deepEqual(shapes(entriesFor(payload({ tool_name: "Bash", tool_input: { command: "npm test" } }), config, [])), [
-    { type: "verify", command: "npm test", exitCode: 0, masked: false },
+    { type: "verify", command: "npm test", key: "npm test", exitCode: 0, masked: false },
   ]);
 });
 
@@ -48,7 +48,7 @@ test("shell write to a code file then a test in one command records both, in ord
   const command = "printf 'x' > src/add.mjs && npm test 2>&1 | tail -15";
   assert.deepEqual(shapes(entriesFor(payload({ tool_name: "Bash", tool_input: { command } }), config, [])), [
     { type: "edit", file: "src/add.mjs" },
-    { type: "verify", command, exitCode: 0, masked: true },
+    { type: "verify", command, key: "npm test", exitCode: 0, masked: true },
   ]);
 });
 

@@ -42,7 +42,7 @@ export function decide({ entries, lastMessage = "", stopHookActive = false, veri
   const runs = entries.slice(lastEdit + 1).filter((e) => e.type === "verify");
   if (runs.length === 0) return { allow: false, reason: unverifiedReason(entries, verifyCommands) };
 
-  const latestByCommand = new Map(runs.map((e) => [e.command, e]));
+  const latestByCommand = new Map(runs.map((e) => [e.key ?? e.command, e]));
   const failing = [...latestByCommand.values()].find((e) => !isPassing(e));
   return failing ? { allow: false, reason: failedReason(failing) } : { allow: true };
 }

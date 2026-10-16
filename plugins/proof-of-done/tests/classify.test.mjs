@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import path from "node:path";
-import { SHELL_EDIT, isCodeFile, isMasked, isVerifyCommand, matchesGlob, parseExitCode, shellEditTargets } from "../lib/classify.mjs";
+import { SHELL_EDIT, isCodeFile, isMasked, isVerifyCommand, matchesGlob, parseExitCode, shellEditTargets, verifyKey } from "../lib/classify.mjs";
 
 const cwd = path.resolve("/work/app");
 const inApp = (rel) => path.join(cwd, rel);
@@ -93,4 +93,13 @@ test("reads, discarded output and stream merges are not edits", () => {
   for (const command of ["git status", "cat src/a.ts", "npm test", "npm test 2>&1 | tail", "npm test > /dev/null", "ls > $null", "dir > NUL"]) {
     assert.deepEqual(shellEditTargets(command), [], command);
   }
+});
+
+test("verify keys identify the check, not the surrounding command", () => {
+  assert.equal(verifyKey("npm test"), "npm test");
+  assert.equal(verifyKey("cd app && npm run test -- --watch=false"), "npm test");
+  assert.equal(verifyKey("printf 'x' > a.js && npm test 2>&1 | tail -8"), "npm test");
+  assert.equal(verifyKey("npx   tsc --noEmit"), "npx tsc");
+  assert.equal(verifyKey("./gradlew build"), "gradlew build");
+  assert.equal(verifyKey("npm run check:all", ["npm run check:all"]), "npm run check:all");
 });

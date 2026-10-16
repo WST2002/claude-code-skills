@@ -72,3 +72,13 @@ test("honest skip line allows the stop", () => {
 test("skip line with a too-short reason does not count", () => {
   assert.equal(decide({ entries: [edit()], lastMessage: "Verification: skipped — n/a" }).allow, false);
 });
+
+test("a plain passing run supersedes an earlier masked run of the same check", () => {
+  const entries = [edit(), { ...run("printf x > a.js && npm test | tail", 0, true), key: "npm test" }, { ...run("npm test"), key: "npm test" }];
+  assert.deepEqual(decide({ entries }), { allow: true });
+});
+
+test("a plain passing run supersedes an earlier failing compound run of the same check", () => {
+  const entries = [edit(), { ...run("cd app && npm test", 1), key: "npm test" }, { ...run("npm test"), key: "npm test" }];
+  assert.deepEqual(decide({ entries }), { allow: true });
+});

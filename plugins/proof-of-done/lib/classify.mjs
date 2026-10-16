@@ -83,8 +83,17 @@ export function isCodeFile(filePath, cwd, ignore = []) {
 }
 
 export function isVerifyCommand(command, projectCommands = []) {
-  if (typeof command !== "string" || !command.trim()) return false;
-  return projectCommands.some((c) => command.includes(c)) || VERIFY_PATTERNS.some((re) => re.test(command));
+  return verifyKey(command, projectCommands) !== null;
+}
+
+export function verifyKey(command, projectCommands = []) {
+  if (typeof command !== "string" || !command.trim()) return null;
+  const projectCommand = projectCommands.find((c) => command.includes(c));
+  if (projectCommand) return projectCommand;
+  const packageScript = VERIFY_PATTERNS[0].exec(command);
+  if (packageScript) return `${packageScript[1]} ${packageScript[3]}`;
+  const match = VERIFY_PATTERNS.slice(1).map((re) => re.exec(command)).find(Boolean);
+  return match ? match[0].replace(/\s+/g, " ") : null;
 }
 
 export function isMasked(command) {

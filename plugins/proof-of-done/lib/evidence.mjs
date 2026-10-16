@@ -1,4 +1,4 @@
-import { SHELL_EDIT, isCodeFile, isMasked, isVerifyCommand, parseExitCode, shellEditTargets } from "./classify.mjs";
+import { SHELL_EDIT, isCodeFile, isMasked, parseExitCode, shellEditTargets, verifyKey } from "./classify.mjs";
 
 const EDIT_TOOLS = new Set(["Edit", "Write", "MultiEdit", "NotebookEdit"]);
 const SHELL_TOOLS = new Set(["Bash", "PowerShell"]);
@@ -14,9 +14,8 @@ function shellEntries(input, config, projectCommands, at) {
   const entries = [];
   const edited = shellEditTargets(command).find((t) => t === SHELL_EDIT || isCodeFile(t, input.cwd, config.ignore));
   if (edited) entries.push({ type: "edit", file: edited, at });
-  if (isVerifyCommand(command, projectCommands)) {
-    entries.push({ type: "verify", command, exitCode: exitCodeOf(input), masked: isMasked(command), at });
-  }
+  const key = verifyKey(command, projectCommands);
+  if (key) entries.push({ type: "verify", command, key, exitCode: exitCodeOf(input), masked: isMasked(command), at });
   return entries;
 }
 

@@ -27,6 +27,18 @@ const SWALLOWED_EXIT = [
 const PIPE = /(^|[^|])\|(?!\|)/;
 const PIPEFAIL = /set\s+-o\s+pipefail/;
 
+export const SHELL_EDIT = "(shell command)";
+const REDIRECT = /(?:^|[^0-9&>=-])>>?\s*(?!&)("[^"]+"|'[^']+'|[^\s;&|<>]+)/g;
+const DISCARDED_OUTPUT = new Set(["/dev/null", "$null", "nul", "NUL"]);
+const FILE_CHANGING = [
+  /\bsed\s+(-[a-zA-Z]*i|--in-place)/,
+  /\bperl\s+-[a-zA-Z]*i/,
+  /\btee\b/,
+  /\b(Set-Content|Add-Content|Out-File|Move-Item|Copy-Item|Remove-Item)\b/i,
+  /(^|[;&|]\s*)(mv|cp|rm)\s/,
+  /\bgit\s+(apply|checkout|restore|stash\s+pop|merge|rebase|cherry-pick|am)\b/,
+];
+
 function toProjectPath(filePath, cwd) {
   const rel = path.relative(cwd, path.resolve(cwd, filePath));
   if (!rel || rel.startsWith("..") || path.isAbsolute(rel)) return null;
@@ -78,6 +90,14 @@ export function isVerifyCommand(command, projectCommands = []) {
 export function isMasked(command) {
   if (SWALLOWED_EXIT.some((re) => re.test(command))) return true;
   return PIPE.test(command) && !PIPEFAIL.test(command);
+}
+
+export function shellEditTargets(command) {
+  const targets = [...command.matchAll(REDIRECT)]
+    .map((match) => match[1].replace(/^["']|["']$/g, ""))
+    .filter((target) => !DISCARDED_OUTPUT.has(target));
+  if (targets.length) return targets;
+  return FILE_CHANGING.some((re) => re.test(command)) ? [SHELL_EDIT] : [];
 }
 
 export function parseExitCode(error) {

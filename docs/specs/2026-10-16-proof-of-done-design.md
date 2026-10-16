@@ -109,6 +109,10 @@ that exits non-zero arrives as `PostToolUseFailure`, whose `error` field starts 
   `|| exit 0` or a trailing `; true` — is recorded with `masked: true` and never
   counts as passing.
 - Edits to files outside the project directory (`cwd`) are not recorded.
+- **Shell writes count as edits.** A shell command that redirects into a code file
+  (`printf ... > src/a.js`) or changes files in place (`sed -i`, `tee`,
+  `Set-Content`, `Out-File`, `mv`, `cp`, `rm`, `git apply/checkout/restore`) is
+  recorded as an edit, before any verification in the same command.
 
 The ledger is append-only JSON Lines, so parallel tool calls cannot overwrite each
 other's entries. Unparseable lines are skipped. Ledgers older than 7 days are deleted

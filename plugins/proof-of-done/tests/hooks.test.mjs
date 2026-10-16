@@ -56,6 +56,12 @@ test("edit, passing test, stop: allowed", (t) => {
   assert.equal(stop().stdout, "");
 });
 
+test("code changed through a shell command, then stop: blocked", (t) => {
+  const { record, stop } = setup(t);
+  record({ tool_name: "Bash", tool_input: { command: "printf 'x' > src/add.mjs" } });
+  assert.equal(block(stop()).decision, "block");
+});
+
 test("second stop attempt is allowed", (t) => {
   const { project, record, stop } = setup(t);
   record({ tool_name: "Edit", tool_input: { file_path: path.join(project, "src/a.js") } });

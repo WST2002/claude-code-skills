@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import path from "node:path";
-import { isCodeFile, isMasked, isVerifyCommand, matchesGlob, parseExitCode } from "../lib/classify.mjs";
+import { SHELL_EDIT, isCodeFile, isMasked, isVerifyCommand, matchesGlob, parseExitCode, shellEditTargets } from "../lib/classify.mjs";
 
 const cwd = path.resolve("/work/app");
 const inApp = (rel) => path.join(cwd, rel);
@@ -76,4 +76,21 @@ test("exit codes are parsed from failure text", () => {
   assert.equal(parseExitCode("Exit code 127"), 127);
   assert.equal(parseExitCode("something else"), null);
   assert.equal(parseExitCode(undefined), null);
+});
+
+test("redirect targets are returned as written files", () => {
+  assert.deepEqual(shellEditTargets("printf 'export const add = (a, b) => a + b;' > src/add.mjs"), ["src/add.mjs"]);
+  assert.deepEqual(shellEditTargets("echo hi >> notes.md"), ["notes.md"]);
+});
+
+test("other file-changing commands count as a shell edit", () => {
+  for (const command of ["sed -i 's/a/b/' src/x.js", "cat a | tee out.ts", "Set-Content -Path a.ts -Value x", "git checkout -- src/a.ts", "git apply fix.patch", "mv a.ts b.ts", "rm src/old.ts"]) {
+    assert.deepEqual(shellEditTargets(command), [SHELL_EDIT], command);
+  }
+});
+
+test("reads, discarded output and stream merges are not edits", () => {
+  for (const command of ["git status", "cat src/a.ts", "npm test", "npm test 2>&1 | tail", "npm test > /dev/null", "ls > $null", "dir > NUL"]) {
+    assert.deepEqual(shellEditTargets(command), [], command);
+  }
 });

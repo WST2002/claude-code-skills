@@ -42,8 +42,10 @@ If you find no defects, say `No defects found` and list what you checked. Do not
 | Level | Meaning |
 |---|---|
 | Blocker | Data loss, security hole, crash on a common path, breaks existing clients |
-| Major | Wrong result in a realistic case, missing error handling, race, leak |
-| Minor | Edge case with low impact, confusing code likely to cause future bugs |
+| Major | Crash or exception that real users or data can trigger, wrong result in a realistic case, missing error handling, race, leak |
+| Minor | Edge case that needs unusual input and has low impact, confusing code likely to cause future bugs |
+
+A change that removes an existing guard (null check, validation, auth check, `await`) is at least Major: the old code proves that case happens.
 
 ## Common mistakes
 

@@ -160,6 +160,7 @@ function homePage(skills, plugins) {
 <p class="lead">${skills.length} free, ready-to-use skills and ${plugins.length} plugins that make Claude Code and other AI coding agents faster, more reliable, and honest about their work: code review, security audit, Figma design compare, QA test cases, and one-command issue-to-PR.</p>
 <pre><code>npx skills add ${REPO}</code></pre>
 <p><a class="button" href="${REPO_URL}">Star on GitHub ⭐</a></p>
+<p class="muted"><strong>Tested with answer keys:</strong> skills are benchmarked with and without the skill on sample projects with seeded bugs. <a href="${REPO_URL}/tree/main/benchmarks">See the benchmarks</a>.</p>
 </section>
 <h2 id="plugins">Plugins</h2>
 <ul class="cards">${plugins.map((p) => card({ ...p, kind: "plugin" })).join("")}</ul>

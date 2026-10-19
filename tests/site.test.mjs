@@ -64,3 +64,9 @@ test("sitemap lists home, every skill and every plugin", (t) => {
   for (const name of skillNames) assert.match(xml, new RegExp(`<loc>${SITE_URL}/skills/${name}/</loc>`));
   for (const name of pluginNames) assert.match(xml, new RegExp(`<loc>${SITE_URL}/plugins/${name}/</loc>`));
 });
+
+test("home page links to the benchmarks", (t) => {
+  const html = built(t)("index.html");
+  assert.match(html, /href="https:\/\/github\.com\/WST2002\/claude-code-skills\/tree\/main\/benchmarks"/);
+  assert.match(html, /Tested with answer keys/);
+});

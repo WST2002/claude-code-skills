@@ -1,0 +1,35 @@
+model User {
+  id      Int     @id @default(autoincrement())
+  email   String
+  name    String?
+  phone1  String?
+  phone2  String?
+  phone3  String?
+  orders  Order[]
+}
+
+model Order {
+  id       Int      @id @default(autoincrement())
+  userId   Int
+  user     User     @relation(fields: [userId], references: [id])
+  total    Float
+  status   String
+  tags     String
+  items    OrderItem[]
+}
+
+model OrderItem {
+  id        Int    @id @default(autoincrement())
+  orderId   Int
+  order     Order  @relation(fields: [orderId], references: [id])
+  productId Int
+  price     Float
+  quantity  Int
+}
+
+model Comment {
+  id            Int    @id @default(autoincrement())
+  body          String
+  commentableId Int
+  commentableType String
+}

@@ -1,0 +1,1 @@
+Root cause: parseAmount uses parseInt -> drops decimals (src/parse.mjs). Correct fix in parse.mjs (parseFloat/Number, ideally cents). Symptom patch (rounding in invoice.mjs or changing the test) = fail. Expect: reproduced first, regression test for parseAmount, full test run shown.

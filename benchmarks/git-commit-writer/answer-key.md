@@ -1,0 +1,1 @@
+Mixed staged changes: (1) fix(cart): multiply by quantity (2) chore(deps): bump axios 1.6.0 -> 1.7.4 (security) (3) docs: fix typo "the the". Expect: detects Conventional Commits from log, proposes splitting into 3 commits with exact git commands, imperative subjects <=72, explains why, no invented issue numbers, no attribution, does not commit.

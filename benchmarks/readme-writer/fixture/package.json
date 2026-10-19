@@ -1,0 +1,16 @@
+{
+  "name": "csv-to-json-lite",
+  "version": "0.3.0",
+  "description": "Convert CSV files to JSON from the command line",
+  "bin": {
+    "csv2json": "bin/csv2json.js"
+  },
+  "scripts": {
+    "test": "node --test",
+    "build": "node scripts/build.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "Apache-2.0"
+}

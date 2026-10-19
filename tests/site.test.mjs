@@ -69,7 +69,7 @@ test("images in READMEs are copied and served from the site", (t) => {
   const read = built(t);
   const src = `/claude-code-skills/media/proof-of-done-demo.gif`;
   assert.match(read("plugins/proof-of-done/index.html"), new RegExp(`<img src="${src}" alt="[^"]+"`));
-  assert.match(read("index.html"), new RegExp(`<img src="${src}" alt="[^"]+"`));
+  assert.match(read("index.html"), new RegExp(`<img src="${src}" width="900" height="576" loading="lazy" alt="[^"]+"`));
   assert.ok(read("media/proof-of-done-demo.gif").length > 0);
 });
 

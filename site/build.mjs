@@ -54,6 +54,11 @@ function markdownFor(repoDir) {
         const external = /^https?:/.test(target) ? ' rel="noopener"' : "";
         return `<a href="${escapeHtml(target)}"${title ? ` title="${escapeHtml(title)}"` : ""}${external}>${text}</a>`;
       },
+      image(href, title, text) {
+        const isRelative = href && !/^(https?:|\/)/.test(href);
+        const src = isRelative ? `${BASE_PATH}/${path.posix.join(repoDir, href)}` : href;
+        return `<img src="${escapeHtml(src)}" alt="${escapeHtml(text)}"${title ? ` title="${escapeHtml(title)}"` : ""}>`;
+      },
     },
   });
   return (markdown) => marked.parse(markdown);
@@ -163,6 +168,7 @@ function homePage(skills, plugins) {
 <p class="muted"><strong>Tested with answer keys:</strong> skills are benchmarked with and without the skill on sample projects with seeded bugs. <a href="${REPO_URL}/tree/main/benchmarks">See the benchmarks</a>.</p>
 </section>
 <h2 id="plugins">Plugins</h2>
+<figure class="demo"><img src="${BASE_PATH}/media/proof-of-done-demo.gif" alt="proof-of-done stops Claude Code from finishing without running the tests; the tests then find a bug it missed"><figcaption>proof-of-done in a real Claude Code session.</figcaption></figure>
 <ul class="cards">${plugins.map((p) => card({ ...p, kind: "plugin" })).join("")}</ul>
 <h2 id="skills">Skills</h2>
 ${sections}`;
@@ -213,6 +219,7 @@ export function buildSite(outDir) {
   write(outDir, "index.html", homePage(skills, plugins));
   write(outDir, "sitemap.xml", sitemap(skills, plugins));
   write(outDir, "style.css", fs.readFileSync(path.join(root, "site", "style.css"), "utf8"));
+  fs.cpSync(path.join(root, "media"), path.join(outDir, "media"), { recursive: true });
   write(outDir, ".nojekyll", "");
 }
 

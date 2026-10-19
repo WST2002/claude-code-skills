@@ -12,6 +12,7 @@ Produce a small, secure, fast-building image that runs the app exactly as it run
 ## Method
 
 1. **Discover:** runtime and version (`.nvmrc`, `engines`, `python_requires`, `pom.xml`, `go.mod`), package manager and lockfile, build command, start command, port, required environment variables (`.env.example`), and services it needs (database, cache).
+   **Secrets check:** if a `.env` or similar file in the project holds real-looking credentials (passwords, production hosts, API keys), tell the user in your reply: it must stay out of the image and out of git, and any secret that was ever committed should be rotated. Never use that file in example `docker run --env-file` commands; use `.env.example` as the template.
 2. **Write the Dockerfile** with the rules below. Templates per stack are in [templates.md](templates.md).
 3. **Write `.dockerignore`** before the first build.
 4. **Write `docker-compose.yml`** if the app needs services, with health checks and named volumes.

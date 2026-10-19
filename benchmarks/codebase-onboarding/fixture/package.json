@@ -1,0 +1,12 @@
+{
+  "name": "acme-monorepo",
+  "private": true,
+  "workspaces": [
+    "api",
+    "web"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspaces",
+    "test": "npm test --workspaces"
+  }
+}

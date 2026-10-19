@@ -1,0 +1,7 @@
+{
+  "name": "promo",
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  }
+}

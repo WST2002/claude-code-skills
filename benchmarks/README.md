@@ -2,7 +2,42 @@
 
 How the skills were tested: the same task, on the same sample project, run once **without** the skill and once **with** it, in Claude Code (October 2026). Each sample project has seeded problems and an answer key.
 
-> The code in these folders is **intentionally broken and insecure**. It exists only to test the skills. Do not run or deploy it.
+> The code in these folders is **intentionally broken and insecure**. It exists only to test the skills. Do not run or deploy it. Credentials in them are fake.
+
+## Summary
+
+26 of 27 skills are benchmarked. `figma-design-compare` needs a real Figma file and token, so it is not included.
+
+| Skill | Answer key covered (without → with skill) | What the skill added |
+|---|---|---|
+| [security-audit](#security-audit--fixture--answer-key) | 10/10 → 10/10 | Fix code, attack request and confidence for every finding |
+| [code-review](#code-review--before--after--answer-key) | 7/7 → 7/7 | Verdict first, fewer nitpicks · severity rule fixed |
+| [test-case-generator](#test-case-generator--story--answer-key) | 14/14 → 14/14 | Priority, type, preconditions, coverage table |
+| [bug-debugger](#bug-debugger--fixture--answer-key) | root cause → root cause | Bug / cause / fix / proof report |
+| [api-design-review](#api-design-review--fixture--answer-key) | 10/10 → 10/10 | Corrected endpoint table, migration plan |
+| [database-schema-design](#database-schema-design--fixture--answer-key) | 9/9 → 9/9 | Full corrected schema, migration risk |
+| [git-commit-writer](#git-commit-writer--setup-script--answer-key) | one commit → three commits | Split commands · identity rule fixed |
+| [readme-writer](#readme-writer--fixture--answer-key) | facts correct → facts correct | `TODO` instead of invented URL, known issues |
+| [web-performance-audit](web-performance-audit) | 9/9 → 9/9 | Expected gain per fix (LCP, CLS, KB) |
+| [accessibility-audit](accessibility-audit) | 9/9 → 9/9 | WCAG criterion and affected users per finding |
+| [seo-audit](seo-audit) | 9/9 → 9/9 | Fix per page template |
+| [test-writer](test-writer) | all cases → all cases (13 → 18 tests) | Proved the tests catch bugs by breaking the code 5 times |
+| [refactor-planner](refactor-planner) | tests first, behaviour kept → same | Tests that pin odd behaviour before refactoring |
+| [playwright-e2e-tests](playwright-e2e-tests) | user-facing locators → same | Logs in once and reuses the session (`storageState`) |
+| [api-test-writer](api-test-writer) | all endpoints → all endpoints | More status, header and auth assertions |
+| [flaky-test-fixer](flaky-test-fixer) | both causes fixed, 10/10 runs → same | Fully controlled randomness instead of looser assertions |
+| [dockerize-app](dockerize-app) | localhost bind + empty lockfile found → same | Pinned multi-stage build · secrets warning fixed |
+| [github-actions-ci](github-actions-ci) | pnpm detected, all checks → same | Least-privilege `permissions: contents: read` |
+| [bug-report-writer](bug-report-writer) | two reports → two reports | Only the relevant log line, unknowns marked |
+| [test-plan-writer](test-plan-writer) | risks covered → same | Measurable entry and exit criteria |
+| [prd-writer](prd-writer) | — (baseline produced a cloud doc) → full PRD | Baseline → target → time frame, "proposed" instead of invented numbers |
+| [changelog-writer](changelog-writer) | 2.0.0 + migration → same | Same quality; consistent format |
+| [codebase-onboarding](codebase-onboarding) | stale README caught, 6/6 flow → same | Ports and setup steps verified from config |
+| [dependency-upgrade](dependency-upgrade) | breaking changes found → same | Warns against `--force` |
+| [architecture-diagram](architecture-diagram) | text only, no diagram → Mermaid diagram | Subgraphs, labelled arrows, no invented parts |
+| [proof-of-done-lite](proof-of-done-lite) | change made, no receipt → change + test + receipt | `Verified: npm test ✓` receipt |
+
+Fixtures and answer keys for each are in the linked folders. Detailed write-ups for the first eight follow.
 
 ## Results
 
@@ -105,7 +140,7 @@ The fixture's `src/convert.js` accidentally contains a syntax error; both runs f
 
 - On these projects the model finds the same problems with or without the skills.
 - The skills make the **output consistent and ready to use**: every finding has a location, evidence and a fix; every test case can be pasted into TestRail or a spreadsheet; every review starts with a verdict.
-- Testing found and fixed real flaws in two skills (code-review severity, git-commit-writer author identity).
+- Testing found and fixed real flaws in three skills (code-review severity, git-commit-writer author identity, dockerize-app secrets warning).
 
 ## Limits
 

@@ -1,0 +1,10 @@
+{
+  "name": "notes-app",
+  "scripts": {
+    "start": "node server.js",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.48.2"
+  }
+}

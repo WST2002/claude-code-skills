@@ -1,0 +1,16 @@
+{
+  "name": "web",
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "build": "vite build",
+    "dev": "vite"
+  },
+  "devDependencies": {
+    "eslint": "9.14.0",
+    "typescript": "5.6.3",
+    "vitest": "2.1.4",
+    "vite": "5.4.10"
+  }
+}

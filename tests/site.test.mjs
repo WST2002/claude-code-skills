@@ -65,6 +65,14 @@ test("sitemap lists home, every skill and every plugin", (t) => {
   for (const name of pluginNames) assert.match(xml, new RegExp(`<loc>${SITE_URL}/plugins/${name}/</loc>`));
 });
 
+test("images in READMEs are copied and served from the site", (t) => {
+  const read = built(t);
+  const src = `/claude-code-skills/media/proof-of-done-demo.gif`;
+  assert.match(read("plugins/proof-of-done/index.html"), new RegExp(`<img src="${src}" alt="[^"]+"`));
+  assert.match(read("index.html"), new RegExp(`<img src="${src}" alt="[^"]+"`));
+  assert.ok(read("media/proof-of-done-demo.gif").length > 0);
+});
+
 test("home page links to the benchmarks", (t) => {
   const html = built(t)("index.html");
   assert.match(html, /href="https:\/\/github\.com\/WST2002\/claude-code-skills\/tree\/main\/benchmarks"/);

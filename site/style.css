@@ -70,3 +70,7 @@ th { background: var(--card); }
 .button { display: inline-block; padding: 10px 18px; border-radius: 10px; background: var(--accent); color: #fff; text-decoration: none; font-weight: 600; }
 
 .foot { margin-top: 56px; padding-top: 20px; padding-bottom: 40px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
+
+img { max-width: 100%; height: auto; border-radius: 10px; }
+.demo { margin: 0 0 20px; }
+.demo figcaption { color: var(--muted); font-size: 14px; margin-top: 6px; }

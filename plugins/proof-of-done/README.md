@@ -3,6 +3,12 @@
 Stops Claude Code from ending its turn after changing code until verification has
 run and passed after the last edit.
 
+![proof-of-done stops Claude Code from finishing without running the tests; the tests then find a bug it missed](../../media/proof-of-done-demo.gif)
+
+*A real Claude Code session, shortened: asked for a quick one-line fix, Claude said it
+had not run the tests. proof-of-done blocked the stop, the tests ran, and one of them
+found a bug Claude had missed.*
+
 ## How it works
 
 1. Every code edit and every verification command (tests, build, lint, typecheck)

@@ -69,7 +69,7 @@ test("images in READMEs are copied and served from the site", (t) => {
   const read = built(t);
   const src = `/claude-code-skills/media/proof-of-done-demo.gif`;
   assert.match(read("plugins/proof-of-done/index.html"), new RegExp(`<img src="${src}" alt="[^"]+"`));
-  assert.match(read("index.html"), new RegExp(`<img src="${src}" alt="[^"]+"`));
+  assert.match(read("index.html"), new RegExp(`<img src="${src}" width="900" height="576" loading="lazy" alt="[^"]+"`));
   assert.ok(read("media/proof-of-done-demo.gif").length > 0);
 });
 
@@ -77,4 +77,26 @@ test("home page links to the benchmarks", (t) => {
   const html = built(t)("index.html");
   assert.match(html, /href="https:\/\/github\.com\/WST2002\/claude-code-skills\/tree\/main\/benchmarks"/);
   assert.match(html, /Tested with answer keys/);
+});
+
+const luminance = (hex) => {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
+    .map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+};
+const contrast = (a, b) => {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+};
+
+test("accent colours meet WCAG AA contrast in light and dark mode", () => {
+  const css = fs.readFileSync(path.join(root, "site", "style.css"), "utf8");
+  const [light, dark] = css.split("@media (prefers-color-scheme: dark)");
+  for (const [name, block] of [["light", light], ["dark", dark]]) {
+    const v = (key) => new RegExp(`--${key}:\\s*(#[0-9a-f]{6})`, "i").exec(block)[1];
+    assert.ok(contrast(v("accent"), v("bg")) >= 4.5, `${name}: accent text on background`);
+    assert.ok(contrast(v("accent"), v("card")) >= 4.5, `${name}: accent text on cards`);
+    assert.ok(contrast(v("accent"), v("code")) >= 4.5, `${name}: accent links inside code`);
+    assert.ok(contrast(v("on-accent"), v("accent")) >= 4.5, `${name}: button text on accent`);
+  }
 });

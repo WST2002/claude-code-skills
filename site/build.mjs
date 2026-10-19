@@ -168,7 +168,7 @@ function homePage(skills, plugins) {
 <p class="muted"><strong>Tested with answer keys:</strong> skills are benchmarked with and without the skill on sample projects with seeded bugs. <a href="${REPO_URL}/tree/main/benchmarks">See the benchmarks</a>.</p>
 </section>
 <h2 id="plugins">Plugins</h2>
-<figure class="demo"><img src="${BASE_PATH}/media/proof-of-done-demo.gif" alt="proof-of-done stops Claude Code from finishing without running the tests; the tests then find a bug it missed"><figcaption>proof-of-done in a real Claude Code session.</figcaption></figure>
+<figure class="demo"><img src="${BASE_PATH}/media/proof-of-done-demo.gif" width="900" height="576" loading="lazy" alt="proof-of-done stops Claude Code from finishing without running the tests; the tests then find a bug it missed"><figcaption>proof-of-done in a real Claude Code session.</figcaption></figure>
 <ul class="cards">${plugins.map((p) => card({ ...p, kind: "plugin" })).join("")}</ul>
 <h2 id="skills">Skills</h2>
 ${sections}`;

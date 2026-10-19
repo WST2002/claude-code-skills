@@ -99,6 +99,9 @@ Or copy any folder from [`skills/`](skills) into `~/.claude/skills/`
 Every skill uses the same approach: a clear method, a fixed output format, and a
 verification step so results are specific and low on false positives.
 
+**Tested:** skills are benchmarked with and without the skill on sample projects
+with seeded bugs and answer keys — see [benchmarks](benchmarks).
+
 ## Plugins vs skills
 
 - **Skills** are instructions. Claude loads them when your request matches.

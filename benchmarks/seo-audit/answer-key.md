@@ -1,0 +1,1 @@
+9 issues: 1 robots noindex on home 2 canonical points to localhost 3 duplicate title 'Home' on both pages / non-descriptive titles 4 no meta descriptions 5 two h1 on home 6 main content rendered only by client JS 7 image without alt 8 link via onclick not crawlable <a href> 9 no sitemap.xml / robots.txt. Also: no OG tags, no structured data.

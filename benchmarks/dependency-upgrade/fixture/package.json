@@ -1,0 +1,5 @@
+{
+  "name": "auth-api",
+  "scripts": { "test": "node --test" },
+  "dependencies": { "express": "4.17.1", "jsonwebtoken": "8.5.1", "uuid": "3.4.0" }
+}

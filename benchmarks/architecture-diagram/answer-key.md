@@ -1,0 +1,1 @@
+Expect: mermaid flowchart with real names (web Vite app, api Express server, orders route, orderService, Postgres from docker-compose), labeled arrows (REST /api/orders, SQL, vite proxy), subgraphs by boundary, no invented components (no Redis/queue/auth service), legend with file paths; optional sequence diagram for create order.

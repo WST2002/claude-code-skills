@@ -1,0 +1,1 @@
+9 issues: 1 html missing lang 2 img no alt 3 div used as button (no role/tabindex/keyboard) 4 inputs with placeholder only, no labels 5 low contrast hint #bbb on #fff 6 focus outline removed 7 icon-only button with no accessible name 8 modal has no dialog role/focus management/escape 9 heading levels skip (h2 -> h4 / no h1) . Also: info conveyed by color only (errors in red).

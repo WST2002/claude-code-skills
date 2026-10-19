@@ -1,0 +1,1 @@
+{ "name": "cart", "type": "module", "scripts": { "test": "node --test" } }

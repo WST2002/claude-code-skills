@@ -1,0 +1,1 @@
+document.getElementById("root").innerHTML = "<p>Acme sells professional hammers, drills and saws with free delivery across India.</p>";

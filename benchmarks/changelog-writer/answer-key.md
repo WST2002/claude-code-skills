@@ -1,0 +1,1 @@
+Expect: version 2.0.0 (breaking change since v1.2.0), Keep a Changelog sections: Added (CSV export #41), Fixed (coupon #44), Security (jsonwebtoken CVE #48), Breaking change with migration steps (read data + pass cursor) #47; omits refactor, ci, 'chore: wip'; user-facing wording; ISO date; no invented items.

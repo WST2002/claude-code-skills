@@ -1,0 +1,8 @@
+{
+  "name": "api",
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "test": "node --test",
+    "db:migrate": "node scripts/migrate.js"
+  }
+}

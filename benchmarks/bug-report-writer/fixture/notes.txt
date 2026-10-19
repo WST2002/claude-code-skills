@@ -1,0 +1,6 @@
+tested the app this morning on my phone (android, chrome) with my test acc (qa.tester2)
+1) uploaded a profile photo, it was a heic from iphone airdropped, spinner keeps going forever, refresh -> old photo still there
+   tried a jpg after that and it worked fine
+2) also the logout button on the menu doesnt do anything when the menu is opened from the bottom nav. from top menu it works
+think its probably because the upload api doesnt support heic? not sure
+logs attached

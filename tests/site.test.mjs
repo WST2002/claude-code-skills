@@ -96,6 +96,7 @@ test("accent colours meet WCAG AA contrast in light and dark mode", () => {
     const v = (key) => new RegExp(`--${key}:\\s*(#[0-9a-f]{6})`, "i").exec(block)[1];
     assert.ok(contrast(v("accent"), v("bg")) >= 4.5, `${name}: accent text on background`);
     assert.ok(contrast(v("accent"), v("card")) >= 4.5, `${name}: accent text on cards`);
+    assert.ok(contrast(v("accent"), v("code")) >= 4.5, `${name}: accent links inside code`);
     assert.ok(contrast(v("on-accent"), v("accent")) >= 4.5, `${name}: button text on accent`);
   }
 });

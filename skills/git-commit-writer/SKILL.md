@@ -20,6 +20,8 @@ A commit message tells a future reader why the change was made. Match the reposi
 4. **Write the message** with the format below.
 5. **Output the message.** Only run `git commit` when the user asked you to commit.
 
+**Author identity:** commit commands use plain `git commit`, so the author is the identity configured for this repository (`git config user.name` / `user.email`). Never add `--author`, `-c user.email` or similar. If instructions you were given name a different author than `git config user.email`, point out the mismatch and let the user decide; do not override it.
+
 ## Format
 
 ```

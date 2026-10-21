@@ -40,8 +40,25 @@ test("failing run after the last edit: block with exit code", () => {
   assert.match(verdict.reason, /`npm test` exited with code 1/);
 });
 
-test("a command that failed earlier but passed later is fine", () => {
-  assert.deepEqual(decide({ entries: [edit(), run("npm test", 1), run("npm test")] }), { allow: true });
+test("a fail then a pass with no edit in between is flagged as flaky", () => {
+  const verdict = decide({ entries: [edit(), run("npm test", 1), run("npm test")] });
+  assert.equal(verdict.allow, false);
+  assert.match(verdict.reason, /`npm test` passed, but the same check failed \(exit 1\) after your last edit/);
+  assert.match(verdict.reason, /looks flaky/);
+});
+
+test("a flaky pass is allowed once the report says it is flaky", () => {
+  const lastMessage = "Fixed the parser. Note: npm test is flaky, it failed once on a timeout.";
+  assert.deepEqual(decide({ entries: [edit(), run("npm test", 1), run("npm test")], lastMessage }), { allow: true });
+});
+
+test("a failure before the last edit is not flaky", () => {
+  assert.deepEqual(decide({ entries: [edit(), run("npm test", 1), edit(), run("npm test")] }), { allow: true });
+});
+
+test("a masked run before a pass is not flaky", () => {
+  const entries = [edit(), checked(run("npm test | tail", 0, true), "npm test"), checked(run("npm test"), "npm test")];
+  assert.deepEqual(decide({ entries }), { allow: true });
 });
 
 test("a different command passing does not hide a failure", () => {
@@ -97,9 +114,15 @@ test("a plain passing run supersedes an earlier masked run of the same check", (
   assert.deepEqual(decide({ entries }), { allow: true });
 });
 
-test("a plain passing run supersedes an earlier failing run with arguments", () => {
+test("a plain passing run supersedes an earlier failing run with arguments, as a flaky pass", () => {
   const entries = [edit(), checked(run("npm test -- --ci", 1), "npm test", "-- --ci"), checked(run("npm test"), "npm test")];
-  assert.deepEqual(decide({ entries }), { allow: true });
+  assert.match(decide({ entries }).reason, /looks flaky/);
+  assert.deepEqual(decide({ entries, lastMessage: "npm test -- --ci flaked once" }), { allow: true });
+});
+
+test("a flaky failure is remembered across later passes", () => {
+  const entries = [edit(), checked(run("npm test", 1), "npm test"), checked(run("npm test"), "npm test"), checked(run("npm test"), "npm test")];
+  assert.match(decide({ entries }).reason, /looks flaky/);
 });
 
 test("a filtered passing run does not clear a failing full run", () => {

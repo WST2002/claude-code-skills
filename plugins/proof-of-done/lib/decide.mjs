@@ -1,6 +1,7 @@
 import path from "node:path";
 
 const SKIP_LINE = /Verification:\s*skipped\s*[—–-]+\s*(.+)/i;
+const FLAKY_MENTION = /\bflak(?:y|e[sd]?|iness)\b/i;
 const MIN_SKIP_REASON = 10;
 const MAX_FILES_LISTED = 5;
 const SKIP_HINT = 'If verification is impossible, end your message with "Verification: skipped — <reason>".';
@@ -36,15 +37,24 @@ function failedReason(entry) {
   return `\`${entry.command}\` was interrupted, so its result is unknown. Run it again and report the result.`;
 }
 
+const hasFailed = (entry) => entry.exitCode !== 0 && entry.exitCode !== null;
+
+function flakyReason(entry) {
+  return `\`${entry.command}\` passed, but the same check failed (exit ${entry.earlierFailure.exitCode}) after your last edit with no code change in between, so it looks flaky or something outside the code changed. Say in your report that the check is flaky and what you know about why, or fix the cause.`;
+}
+
+// The latest run of each check. A run without arguments also replaces earlier runs of the same check
+// with arguments. Each run remembers a failure it replaced: with no edit in between, that is a flaky pass.
 function latestRunPerCheck(runs) {
   const latest = new Map();
   for (const run of runs) {
     const check = run.check ?? run.command;
     const args = run.args ?? "";
-    if (args === "") {
-      for (const [key, previous] of latest) if ((previous.check ?? previous.command) === check) latest.delete(key);
-    }
-    latest.set(`${check}\u0000${args}`, run);
+    const key = `${check}\u0000${args}`;
+    const replaced = [...latest].filter(([k, previous]) => k === key || (args === "" && (previous.check ?? previous.command) === check));
+    for (const [k] of replaced) latest.delete(k);
+    const failure = replaced.map(([, previous]) => (hasFailed(previous) ? previous : previous.earlierFailure)).find(Boolean);
+    latest.set(key, failure ? { ...run, earlierFailure: failure } : run);
   }
   return latest;
 }
@@ -59,6 +69,9 @@ export function decide({ entries, lastMessage = "", stopHookActive = false, veri
   const runs = entries.slice(lastEdit + 1).filter((e) => e.type === "verify");
   if (runs.length === 0) return { allow: false, reason: unverifiedReason(entries, verifyCommands) };
 
-  const failing = [...latestRunPerCheck(runs).values()].find((e) => !isPassing(e));
-  return failing ? { allow: false, reason: failedReason(failing) } : { allow: true };
+  const latest = [...latestRunPerCheck(runs).values()];
+  const failing = latest.find((e) => !isPassing(e));
+  if (failing) return { allow: false, reason: failedReason(failing) };
+  const flaky = latest.find((e) => e.earlierFailure);
+  return flaky && !FLAKY_MENTION.test(lastMessage ?? "") ? { allow: false, reason: flakyReason(flaky) } : { allow: true };
 }

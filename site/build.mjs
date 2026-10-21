@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Marked } from "marked";
 import { CATEGORIES } from "./categories.mjs";
+import { createZip } from "./zip.mjs";
 
 export const SITE_URL = "https://wst2002.github.io/claude-code-skills";
 const BASE_PATH = "/claude-code-skills";
@@ -117,8 +118,12 @@ function itemPage(item, kind, related) {
   const canonical = `${SITE_URL}/${kind}s/${item.slug}/`;
   const label = kind === "skill" ? "Claude Code Skill" : "Claude Code Plugin";
   const install = kind === "skill"
-    ? `<pre><code>npx skills add ${REPO} --skill ${item.slug}</code></pre>
-<p class="muted">Or copy <a href="${REPO_URL}/tree/main/skills/${item.slug}"><code>skills/${item.slug}</code></a> into <code>~/.claude/skills/</code>.</p>`
+    ? `<h3>Claude Code</h3>
+<pre><code>npx skills add ${REPO} --skill ${item.slug}</code></pre>
+<p class="muted">Or copy <a href="${REPO_URL}/tree/main/skills/${item.slug}"><code>skills/${item.slug}</code></a> into <code>~/.claude/skills/</code>.</p>
+<h3>Claude app (no terminal)</h3>
+<p><a class="button" href="${BASE_PATH}/downloads/${item.slug}.zip" download>Download ${escapeHtml(item.name)} (.zip)</a></p>
+<ol class="muted"><li>In Claude, turn on <strong>Code execution</strong> (Settings → Capabilities).</li><li>Open <strong>Customize → Skills</strong>, click <strong>+</strong>, choose <strong>Upload a skill</strong> and pick the ZIP. Menu names can differ slightly between app versions.</li><li>Ask Claude for the task; it uses the skill when it fits.</li></ol>`
     : `<pre><code>claude plugin marketplace add ${REPO} &amp;&amp; claude plugin install ${item.slug}@claude-code-skills</code></pre>`;
   const relatedHtml = related.length
     ? `<section class="related"><h2>Related skills</h2><ul class="cards">${related.map(card).join("")}</ul></section>`
@@ -199,6 +204,13 @@ ${urls.map((u) => `<url><loc>${u}</loc><lastmod>${today}</lastmod></url>`).join(
 `;
 }
 
+// The Claude app expects a ZIP with the skill folder at its root.
+function skillZip(slug) {
+  const dir = path.join(root, "skills", slug);
+  const files = fs.readdirSync(dir, { recursive: true }).filter((rel) => fs.statSync(path.join(dir, rel)).isFile()).sort();
+  return createZip(files.map((rel) => ({ name: `${slug}/${rel.split(path.sep).join("/")}`, data: fs.readFileSync(path.join(dir, rel)) })));
+}
+
 function write(outDir, rel, content) {
   const file = path.join(outDir, rel);
   fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -214,6 +226,9 @@ export function buildSite(outDir) {
       .filter((slug) => slug !== skill.slug)
       .map((slug) => ({ ...skills.find((s) => s.slug === slug), kind: "skill" }));
     write(outDir, `skills/${skill.slug}/index.html`, itemPage(skill, "skill", related));
+    write(outDir, `downloads/${skill.slug}.zip`, skillZip(skill.slug));
+    const examples = path.join(root, "skills", skill.slug, "examples");
+    if (fs.existsSync(examples)) fs.cpSync(examples, path.join(outDir, "skills", skill.slug, "examples"), { recursive: true });
   }
   for (const plugin of plugins) write(outDir, `plugins/${plugin.slug}/index.html`, itemPage(plugin, "plugin", []));
   write(outDir, "index.html", homePage(skills, plugins));

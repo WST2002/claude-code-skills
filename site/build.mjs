@@ -14,7 +14,7 @@ const AUTHOR = {
   email: "tripathiwageesha2002@gmail.com",
   github: "https://github.com/WST2002",
 };
-const ACRONYMS = new Set(["api", "prd", "seo", "readme", "ci", "e2e", "pr", "qa", "db"]);
+const ACRONYMS = new Set(["api", "prd", "seo", "readme", "ci", "e2e", "pr", "qa", "db", "ui", "ux"]);
 const SMALL_WORDS = new Set(["to", "of", "and", "for", "in", "on"]);
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 

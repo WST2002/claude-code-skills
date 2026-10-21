@@ -31,6 +31,18 @@ test("successful verification run", () => {
   ]);
 });
 
+test("a run's output records how many tests ran", () => {
+  const skipped = payload({ tool_name: "Bash", tool_input: { command: "npm test" }, tool_response: { stdout: "# tests 2\n# pass 0\n# fail 0\n# skipped 2", stderr: "" } });
+  assert.equal(entriesFor(skipped, config, [])[0].testsRun, 0);
+  const passed = payload({ tool_name: "PowerShell", tool_input: { command: "npx jest" }, tool_response: "Tests:       3 passed, 3 total" });
+  assert.equal(entriesFor(passed, config, [])[0].testsRun, 3);
+});
+
+test("output without a test summary records no test count", () => {
+  const [entry] = entriesFor(payload({ tool_name: "Bash", tool_input: { command: "npm run build" }, tool_response: { stdout: "built in 1s" } }), config, []);
+  assert.equal("testsRun" in entry, false);
+});
+
 test("failed verification run takes the exit code from the error text", () => {
   const [entry] = entriesFor(payload({ hook_event_name: "PostToolUseFailure", tool_name: "PowerShell", tool_input: { command: "npm test" }, error: "Exit code 2\nboom" }), config, []);
   assert.equal(entry.exitCode, 2);

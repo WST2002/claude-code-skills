@@ -17,7 +17,7 @@ export const CATEGORIES = [
   },
   {
     title: "UI/UX design",
-    skills: ["design-review", "figma-design-compare"],
+    skills: ["design-review", "ux-research-synthesis", "figma-design-compare"],
   },
   {
     title: "Architecture",

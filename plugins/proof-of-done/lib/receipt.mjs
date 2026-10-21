@@ -3,6 +3,7 @@ import { decide } from "./decide.mjs";
 function status(entry) {
   if (entry.exitCode !== 0 && entry.exitCode !== null) return `✗ exit ${entry.exitCode}`;
   if (entry.masked) return "⚠ masked";
+  if (entry.exitCode === 0 && entry.testsRun === 0) return "⚠ 0 tests ran";
   return entry.exitCode === 0 ? "✓ passed" : "? interrupted";
 }
 

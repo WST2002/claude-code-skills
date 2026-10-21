@@ -77,6 +77,37 @@ test("the natural shorthand of a detected command supersedes a masked run", (t) 
   assert.equal(stop().stdout, "");
 });
 
+function realTestOutput(project, body) {
+  writeFiles(project, { "a.test.mjs": `import { test } from "node:test";\n${body}\n` });
+  const { NODE_TEST_CONTEXT: _, ...env } = process.env;
+  return spawnSync(process.execPath, ["--test", "--test-reporter=tap", "a.test.mjs"], { cwd: project, env, encoding: "utf8" }).stdout;
+}
+
+test("edit, test run with every test skipped, stop: blocked", (t) => {
+  const { project, record, stop } = setup(t);
+  record({ tool_name: "Edit", tool_input: { file_path: path.join(project, "src/a.js") } });
+  const stdout = realTestOutput(project, 'test("a", { skip: true }, () => {});');
+  record({ tool_name: "Bash", tool_input: { command: "npm run test" }, tool_response: { stdout, stderr: "" } });
+  assert.match(block(stop()).reason, /exited 0 but ran 0 tests/);
+});
+
+test("edit, test run with a real passing test, stop: allowed", (t) => {
+  const { project, record, stop } = setup(t);
+  record({ tool_name: "Edit", tool_input: { file_path: path.join(project, "src/a.js") } });
+  const stdout = realTestOutput(project, 'test("a", () => {});');
+  record({ tool_name: "Bash", tool_input: { command: "npm run test" }, tool_response: { stdout, stderr: "" } });
+  assert.equal(stop().stdout, "");
+});
+
+test("edit, failed test, rerun passes with no edit, stop: flagged as flaky until the report says so", (t) => {
+  const { project, record, stop } = setup(t);
+  record({ tool_name: "Edit", tool_input: { file_path: path.join(project, "src/a.js") } });
+  record({ hook_event_name: "PostToolUseFailure", tool_name: "Bash", tool_input: { command: "npm run test" }, error: "Exit code 1\nfail" });
+  record({ tool_name: "Bash", tool_input: { command: "npm run test" } });
+  assert.match(block(stop()).reason, /looks flaky/);
+  assert.equal(stop({ last_assistant_message: "Done. npm run test is flaky: it failed once, then passed." }).stdout, "");
+});
+
 test("payloads without a session id are neither recorded nor gated", (t) => {
   const { project, record, stop } = setup(t);
   const result = record({ session_id: undefined, tool_name: "Edit", tool_input: { file_path: path.join(project, "src/a.js") } });

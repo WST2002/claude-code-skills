@@ -21,6 +21,15 @@ test("lists files once, runs with status, and the gate verdict with the project'
   assert.match(text, /would block/);
 });
 
+test("a run that ran 0 tests is shown as such", () => {
+  const text = formatReceipt([
+    { type: "edit", file: "/p/a.ts", at: "t1" },
+    { type: "verify", command: "npm test", exitCode: 0, masked: false, testsRun: 0, at: "t2" },
+  ]);
+  assert.match(text, /`npm test` ⚠ 0 tests ran/);
+  assert.match(text, /would block/);
+});
+
 test("unverified edits name the project's commands", () => {
   assert.match(formatReceipt([{ type: "edit", file: "/p/a.ts", at: "t1" }], { verifyCommands: ["npm run test"] }), /`npm run test`/);
 });

@@ -19,7 +19,14 @@ found a bug Claude had missed.*
      commands to run
    - the latest run of any check failed, was interrupted, or had its exit code
      hidden (`| tail`, `|| true`) → blocked, with the reason
+   - a test run exited 0 but its summary shows 0 tests ran (every test
+     skipped, or no test files found) → blocked
+   - a check failed and then passed with no edit in between → flagged as flaky;
+     blocked until the report says the check is flaky
    - every check's latest run passed → allowed
+
+Test summaries are read from node --test, Jest, Vitest, pytest, Cargo and Mocha
+output. For other tools only the exit code counts.
 3. If verification is genuinely impossible, the agent can end with
    `Verification: skipped — <reason>` and say so honestly.
 

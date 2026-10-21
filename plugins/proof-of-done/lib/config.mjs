@@ -6,7 +6,7 @@ export const CONFIG_PATH = ".claude/proof-of-done.json";
 const strings = (value) => (Array.isArray(value) ? value.filter((v) => typeof v === "string") : null);
 
 export function loadConfig(projectDir) {
-  const defaults = { enabled: true, verify: null, ignore: [], error: null };
+  const defaults = { enabled: true, verify: null, ignore: [], tamper: true, error: null };
   let raw;
   try {
     raw = fs.readFileSync(path.join(projectDir, CONFIG_PATH), "utf8");
@@ -23,6 +23,7 @@ export function loadConfig(projectDir) {
     enabled: parsed.enabled !== false,
     verify: strings(parsed.verify),
     ignore: strings(parsed.ignore) ?? [],
+    tamper: parsed.tamper !== false,
     error: null,
   };
 }

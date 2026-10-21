@@ -37,6 +37,7 @@ function isValidEntry(entry) {
   if (entry === null || typeof entry !== "object") return false;
   if (entry.type === "edit") return typeof entry.file === "string";
   if (entry.type === "verify") return typeof entry.command === "string";
+  if (entry.type === "baseline") return typeof entry.sha === "string";
   return false;
 }
 

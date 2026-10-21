@@ -11,7 +11,7 @@
       "name": "proof-of-done",
       "source": "./plugins/proof-of-done",
       "description": "Blocks the agent from finishing after code changes until tests, build or lint have passed.",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "category": "quality",
       "tags": [
         "verification",

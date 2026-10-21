@@ -23,10 +23,20 @@ found a bug Claude had missed.*
      skipped, or no test files found) → blocked
    - a check failed and then passed with no edit in between → flagged as flaky;
      blocked until the report says the check is flaky
+   - test changes that make checks pass without a fix → blocked, with file and
+     line: a test skipped or focused (`.skip`, `.only`, `@pytest.mark.skip`),
+     an exact assertion swapped for a weak one (`toBe(250)` → `toBeDefined()`),
+     an assertion that cannot fail (`expect(true)`, `assert True`), tests or test
+     files deleted, errors hidden (`@ts-ignore`, `eslint-disable`, `# noqa`), or a
+     coverage threshold lowered. A real, intended change is allowed when the report
+     explains it on a line starting `Test changes:`
    - every check's latest run passed → allowed
 
 Test summaries are read from node --test, Jest, Vitest, pytest, Cargo and Mocha
-output. For other tools only the exit code counts.
+output. For other tools only the exit code counts. Test changes are read from
+`git diff` against the commit the session started from, so committing a weakened
+test does not hide it.
+
 3. If verification is genuinely impossible, the agent can end with
    `Verification: skipped — <reason>` and say so honestly.
 
@@ -52,12 +62,14 @@ Create `.claude/proof-of-done.json` in your project:
 {
   "enabled": true,
   "verify": ["npm run lint", "npm test"],
-  "ignore": ["generated/**", "*.snap"]
+  "ignore": ["generated/**", "*.snap"],
+  "tamper": true
 }
 ```
 
 - `verify` replaces auto-detection.
 - `ignore` adds file globs that never count as code edits.
+- `tamper: false` turns off the test-change checks only.
 - `enabled: false` turns the gate off for this project.
 
 Auto-detection covers npm/pnpm/yarn/bun scripts (`typecheck`, `lint`, `test`,

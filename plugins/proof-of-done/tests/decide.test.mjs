@@ -58,6 +58,21 @@ test("masked run does not count", () => {
   assert.match(verdict.reason, /no pipe, no `;`, `\|\|` or `&` after it/);
 });
 
+test("a run that passed with 0 tests does not count", () => {
+  const verdict = decide({ entries: [edit(), { ...run("npm test"), testsRun: 0 }] });
+  assert.equal(verdict.allow, false);
+  assert.match(verdict.reason, /`npm test` exited 0 but ran 0 tests/);
+});
+
+test("a run that passed with tests counts", () => {
+  assert.deepEqual(decide({ entries: [edit(), { ...run("npm test"), testsRun: 4 }] }), { allow: true });
+});
+
+test("a later run with tests clears an earlier empty run", () => {
+  const entries = [edit(), checked({ ...run("npm test"), testsRun: 0 }, "npm test"), checked({ ...run("npm test"), testsRun: 4 }, "npm test")];
+  assert.deepEqual(decide({ entries }), { allow: true });
+});
+
 test("interrupted run does not count", () => {
   assert.match(decide({ entries: [edit(), run("npm test", null)] }).reason, /interrupted/);
 });

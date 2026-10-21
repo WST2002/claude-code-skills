@@ -5,7 +5,7 @@ const MIN_SKIP_REASON = 10;
 const MAX_FILES_LISTED = 5;
 const SKIP_HINT = 'If verification is impossible, end your message with "Verification: skipped — <reason>".';
 
-export const isPassing = (entry) => entry.exitCode === 0 && !entry.masked;
+export const isPassing = (entry) => entry.exitCode === 0 && !entry.masked && entry.testsRun !== 0;
 
 function fileList(entries) {
   const lastVerify = entries.findLastIndex((e) => e.type === "verify");
@@ -29,6 +29,9 @@ function failedReason(entry) {
   if (entry.masked) {
     const rerun = entry.check ? `${entry.check} ${entry.args ?? ""}`.trim() : entry.command;
     return `\`${entry.command}\` ran with its exit code hidden, so it does not count as proof. Run \`${rerun}\` again as a command on its own: no pipe, no \`;\`, \`||\` or \`&\` after it. Then report the result.`;
+  }
+  if (entry.testsRun === 0) {
+    return `\`${entry.command}\` exited 0 but ran 0 tests (every test was skipped, or none were found), so it does not count as proof. Run tests that cover your change, or report honestly that none ran. ${SKIP_HINT}`;
   }
   return `\`${entry.command}\` was interrupted, so its result is unknown. Run it again and report the result.`;
 }

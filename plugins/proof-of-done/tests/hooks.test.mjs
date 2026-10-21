@@ -22,7 +22,7 @@ function setup(t) {
   const base = { session_id: "sess-1", cwd: project };
   const record = (input) => runHook("record.mjs", { ...base, hook_event_name: "PostToolUse", ...input }, dataDir);
   const stop = (input = {}) => runHook("gate.mjs", { ...base, hook_event_name: "Stop", stop_hook_active: false, last_assistant_message: "Done.", ...input }, dataDir);
-  return { project, record, stop };
+  return { project, dataDir, record, stop };
 }
 
 const block = (result) => (result.stdout ? JSON.parse(result.stdout) : null);
@@ -170,4 +170,59 @@ test("garbage stdin: no crash, allows, warns", (t) => {
     assert.equal(result.stdout, "", script);
     assert.match(result.stderr, /^proof-of-done: /, script);
   }
+});
+
+function gitProject(t) {
+  const ctx = setup(t);
+  const git = (...args) => spawnSync("git", ["-c", "user.name=t", "-c", "user.email=t@example.com", ...args], { cwd: ctx.project, encoding: "utf8" });
+  writeFiles(ctx.project, { "src/add.js": "export const add = (a, b) => a + b;\n", "src/add.test.js": 'test("adds", () => {\n  expect(add(1, 2)).toBe(3);\n});\n' });
+  git("init", "-q");
+  git("add", "-A");
+  git("commit", "-q", "-m", "start");
+  const start = () => runHook("start.mjs", { session_id: "sess-1", cwd: ctx.project, hook_event_name: "SessionStart", source: "startup" }, ctx.dataDir);
+  return { ...ctx, git, start };
+}
+
+test("a test skipped during the session blocks even when the tests pass", (t) => {
+  const { project, record, stop, start } = gitProject(t);
+  start();
+  writeFiles(project, { "src/add.test.js": 'test.skip("adds", () => {\n  expect(add(1, 2)).toBe(3);\n});\n' });
+  record({ tool_name: "Edit", tool_input: { file_path: path.join(project, "src/add.test.js") } });
+  record({ tool_name: "Bash", tool_input: { command: "npm run test" } });
+  const verdict = block(stop());
+  assert.equal(verdict.decision, "block");
+  assert.match(verdict.reason, /src\/add\.test\.js:1 skips or focuses tests/);
+  assert.equal(stop({ last_assistant_message: "Test changes: skipped until the new rounding rules are agreed with product." }).stdout, "");
+});
+
+test("committing the weakened test during the session does not hide it", (t) => {
+  const { project, record, stop, start, git } = gitProject(t);
+  start();
+  writeFiles(project, { "src/add.test.js": 'test("adds", () => {\n  expect(add(1, 2)).toBeDefined();\n});\n' });
+  record({ tool_name: "Edit", tool_input: { file_path: path.join(project, "src/add.test.js") } });
+  git("commit", "-q", "-am", "tidy test");
+  record({ tool_name: "Bash", tool_input: { command: "npm run test" } });
+  assert.match(block(stop()).reason, /src\/add\.test\.js:2 replaces an exact assertion with a weaker one/);
+});
+
+test("an honest fix with a new test passes the gate", (t) => {
+  const { project, record, stop, start } = gitProject(t);
+  start();
+  writeFiles(project, {
+    "src/add.js": "export const add = (a, b) => Number(a) + Number(b);\n",
+    "src/add.test.js": 'test("adds", () => {\n  expect(add(1, 2)).toBe(3);\n});\ntest("adds strings", () => {\n  expect(add("1", "2")).toBe(3);\n});\n',
+  });
+  record({ tool_name: "Edit", tool_input: { file_path: path.join(project, "src/add.js") } });
+  record({ tool_name: "Bash", tool_input: { command: "npm run test" } });
+  assert.equal(stop().stdout, "");
+});
+
+test("tamper checks can be switched off", (t) => {
+  const { project, record, stop, start } = gitProject(t);
+  writeFiles(project, { ".claude/proof-of-done.json": { tamper: false } });
+  start();
+  writeFiles(project, { "src/add.test.js": 'test.skip("adds", () => {});\n' });
+  record({ tool_name: "Edit", tool_input: { file_path: path.join(project, "src/add.test.js") } });
+  record({ tool_name: "Bash", tool_input: { command: "npm run test" } });
+  assert.equal(stop().stdout, "");
 });

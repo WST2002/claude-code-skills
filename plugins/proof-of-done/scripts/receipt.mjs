@@ -6,6 +6,7 @@ import { detectVerifyCommands } from "../lib/detect.mjs";
 import { warn } from "../lib/hook-io.mjs";
 import { readLedger } from "../lib/ledger.mjs";
 import { formatReceipt } from "../lib/receipt.mjs";
+import { sessionTampering } from "../lib/session-diff.mjs";
 
 const samePath = (a, b) => typeof a === "string" && path.relative(a, b) === "";
 
@@ -55,7 +56,8 @@ function main() {
   }
   const config = loadConfig(projectDir);
   const verifyCommands = config.verify ?? detectVerifyCommands(projectDir);
-  process.stdout.write(formatReceipt(entries, { enabled: config.enabled, verifyCommands }));
+  const tampering = sessionTampering({ cwd: projectDir, entries, config });
+  process.stdout.write(formatReceipt(entries, { enabled: config.enabled, verifyCommands, tampering }));
 }
 
 try {

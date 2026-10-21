@@ -1,0 +1,114 @@
+{
+  "title": "Checkout (mobile)",
+  "verdict": "Needs rework: the main pay button looks disabled and fails contrast, and the form has no labels.",
+  "goal": "A shopper who has chosen the earbuds wants to pay quickly; primary action: Pay ₹2,548.",
+  "image": "checkout.png",
+  "topFixes": [
+    "Make \"Pay ₹2,548\" the only filled primary button (#2563EB with white text, 5.17:1) and turn PayPal into an outlined secondary button.",
+    "Put a visible label above every field and show the phone error as text under the field.",
+    "Make the quantity − and + buttons at least 44×44 pt."
+  ],
+  "findings": [
+    {
+      "severity": "Blocker",
+      "x": 94.9,
+      "y": 77.1,
+      "where": "\"Pay ₹2,548\" button",
+      "problem": "Grey text on grey, sampled #9E9E9E on #BDBDBD = 1.43:1 (needs 4.5:1). It looks disabled.",
+      "why": "The main action of the screen is the hardest thing to see; shoppers will wait for it to \"enable\" or leave.",
+      "fix": "Use the primary style: #2563EB background, #FFFFFF text (5.17:1)."
+    },
+    {
+      "severity": "Major",
+      "x": 5.1,
+      "y": 77.1,
+      "where": "\"Pay with PayPal\" button",
+      "problem": "PayPal is the strongest button on the screen, so it competes with, and beats, the main card payment.",
+      "why": "Two primary-looking actions side by side slow the decision and push most people to the wrong one.",
+      "fix": "Make PayPal an outlined secondary button below the main pay button, full width."
+    },
+    {
+      "severity": "Blocker",
+      "x": 8.2,
+      "y": 31.5,
+      "where": "Shipping address fields",
+      "problem": "Placeholders are the only labels; they vanish when typing and are very light, sampled #C7C7CC on white = 1.68:1.",
+      "why": "Once a field is filled, nobody can check what it was for; screen readers and low-vision users miss the field names (WCAG 3.3.2, 1.4.3).",
+      "fix": "Add a 13px label above each field in #1D1D1F; keep placeholders only for examples like \"10-digit mobile number\"."
+    },
+    {
+      "severity": "Major",
+      "x": 88.5,
+      "y": 38.6,
+      "where": "Phone number field in error",
+      "problem": "Only a red border shows the error; there is no message.",
+      "why": "Users cannot tell what is wrong with \"98765\", and colour alone fails for colour-blind users (WCAG 1.4.1, 3.3.1).",
+      "fix": "Show \"Enter a 10-digit mobile number\" under the field with an error icon, and announce it to screen readers."
+    },
+    {
+      "severity": "Major",
+      "x": 81.5,
+      "y": 11.2,
+      "where": "Quantity − and + buttons",
+      "problem": "The buttons are 20×20 pt, below the 24 px web minimum and far below 44 pt.",
+      "why": "Hard to tap on a phone; mis-taps change the order by mistake.",
+      "fix": "Make each button 44×44 pt (the visible box can stay small with a larger tap area)."
+    },
+    {
+      "severity": "Major",
+      "x": 5,
+      "y": 3.7,
+      "where": "Header",
+      "problem": "No back or close control, and no way to edit the cart from here.",
+      "why": "Users who want to change their order have to use the browser back button and may lose what they typed.",
+      "fix": "Add a back arrow on the left of the header with an accessible name \"Back to cart\"."
+    },
+    {
+      "severity": "Minor",
+      "x": 3.6,
+      "y": 71.1,
+      "where": "Order summary, Total row",
+      "problem": "Total uses the same size, weight and colour as Subtotal and Delivery.",
+      "why": "The number people check before paying does not stand out.",
+      "fix": "Make the Total row 17px semibold in #1D1D1F, with a divider above it."
+    },
+    {
+      "severity": "Minor",
+      "x": 65.4,
+      "y": 86.2,
+      "where": "\"Have a promo code?\" link",
+      "problem": "The promo code entry comes after the pay buttons, in 12px text.",
+      "why": "Shoppers find it after deciding to pay, and the total they saw changes afterwards.",
+      "fix": "Move it into the order summary card above Total, at 15px."
+    },
+    {
+      "severity": "Minor",
+      "x": 61.5,
+      "y": 14.1,
+      "where": "Product details line",
+      "problem": "11px text, sampled #B0B0B5 on white = 2.16:1.",
+      "why": "Colour and delivery time are useful to confirm, but hard to read.",
+      "fix": "Use 13px in #6E6E73 (5.07:1)."
+    },
+    {
+      "severity": "Polish",
+      "x": 4.6,
+      "y": 23.2,
+      "where": "Corner radius",
+      "problem": "Inputs use a 3px radius, cards 14px and buttons a full pill.",
+      "why": "Mixed radii make the screen feel assembled from different kits.",
+      "fix": "Use the card radius family: 10px for inputs, keep pills only for buttons."
+    }
+  ],
+  "missingStates": [
+    "Paying: no loading state for the pay button, so double taps can charge twice.",
+    "Payment failed: no designed error for a declined card or a cancelled PayPal flow.",
+    "Invalid PIN code: no message, and no city or state shown to confirm the address.",
+    "Long product names: no rule for wrapping or truncating the title next to the quantity control."
+  ],
+  "works": [
+    "Clear grouping into product, address and summary cards.",
+    "Prices are right-aligned, so they are easy to scan and compare.",
+    "One column, top to bottom, which suits a phone."
+  ]
+}

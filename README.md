@@ -79,11 +79,21 @@ Or copy any folder from [`skills/`](skills) into `~/.claude/skills/`
 ### UI/UX design
 
 For designers too: these skills also work in the Claude app, with a screenshot,
-a Figma frame or your research notes.
+a Figma frame or your research notes. No terminal needed:
+
+1. Download the skill's ZIP from its page on the [website](https://wst2002.github.io/claude-code-skills/#skills).
+2. In Claude, turn on **Code execution** (Settings → Capabilities).
+3. Open **Customize → Skills**, click **+**, choose **Upload a skill** and pick the ZIP.
+
+![design-review report: the screenshot with numbered pins, and each finding with severity, why it matters and the fix](media/design-review-report.png)
+
+*design-review turns a screenshot into a shareable report: numbered pins on the screen, exact contrast
+ratios measured from the pixels, and a concrete fix for each finding.
+[Open the example report](https://wst2002.github.io/claude-code-skills/skills/design-review/examples/checkout-review.html).*
 
 | Skill | Use it to |
 |---|---|
-| [design-review](skills/design-review) | Get senior-designer feedback on a screen: usability, hierarchy, accessibility and missing states, each with a concrete fix |
+| [design-review](skills/design-review) | Get senior-designer feedback on a screen: usability, hierarchy, accessibility and missing states, each with a concrete fix, as a report with numbered pins on the screenshot |
 | [ux-research-synthesis](skills/ux-research-synthesis) | Turn interview notes and transcripts into findings with quotes, participant counts and "how might we" opportunities |
 | [design-handoff-spec](skills/design-handoff-spec) | Write the developer handoff: every state, edge case, breakpoint and interaction, with open questions instead of guesses |
 | [ux-writing](skills/ux-writing) | Write or review buttons, error messages, empty states and other UI text: clear, short and consistent |

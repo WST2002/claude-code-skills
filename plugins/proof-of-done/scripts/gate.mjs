@@ -3,6 +3,7 @@ import { decide } from "../lib/decide.mjs";
 import { detectVerifyCommands } from "../lib/detect.mjs";
 import { pluginDataDir, readHookInput, warn } from "../lib/hook-io.mjs";
 import { ledgerPath, readLedger } from "../lib/ledger.mjs";
+import { sessionTampering } from "../lib/session-diff.mjs";
 
 function main() {
   const input = readHookInput();
@@ -13,11 +14,14 @@ function main() {
     return;
   }
   if (!config.enabled) return;
+  const entries = readLedger(ledgerPath(pluginDataDir(), input.session_id));
+  const stopHookActive = input.stop_hook_active === true;
   const verdict = decide({
-    entries: readLedger(ledgerPath(pluginDataDir(), input.session_id)),
+    entries,
     lastMessage: input.last_assistant_message,
-    stopHookActive: input.stop_hook_active === true,
+    stopHookActive,
     verifyCommands: config.verify ?? detectVerifyCommands(input.cwd),
+    tampering: stopHookActive ? [] : sessionTampering({ cwd: input.cwd, entries, config }),
   });
   if (!verdict.allow) process.stdout.write(JSON.stringify({ decision: "block", reason: verdict.reason }));
 }

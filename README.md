@@ -76,11 +76,23 @@ Or copy any folder from [`skills/`](skills) into `~/.claude/skills/`
 | [accessibility-audit](skills/accessibility-audit) | Check keyboard, screen reader, contrast and ARIA issues mapped to WCAG 2.2 AA |
 | [seo-audit](skills/seo-audit) | Make pages crawlable and indexable: meta tags, canonical, sitemap, structured data |
 
-### Design and architecture
+### UI/UX design
+
+For designers too: these skills also work in the Claude app, with a screenshot,
+a Figma frame or your research notes.
 
 | Skill | Use it to |
 |---|---|
+| [design-review](skills/design-review) | Get senior-designer feedback on a screen: usability, hierarchy, accessibility and missing states, each with a concrete fix |
+| [ux-research-synthesis](skills/ux-research-synthesis) | Turn interview notes and transcripts into findings with quotes, participant counts and "how might we" opportunities |
+| [design-handoff-spec](skills/design-handoff-spec) | Write the developer handoff: every state, edge case, breakpoint and interaction, with open questions instead of guesses |
+| [ux-writing](skills/ux-writing) | Write or review buttons, error messages, empty states and other UI text: clear, short and consistent |
 | [figma-design-compare](skills/figma-design-compare) | Check a website, web app or mobile screen against its Figma frame: screenshots plus exact font, color, spacing and size values |
+
+### Architecture
+
+| Skill | Use it to |
+|---|---|
 | [database-schema-design](skills/database-schema-design) | Design a schema from scratch or review one for integrity, indexes and safe migrations |
 | [api-design-review](skills/api-design-review) | Design or review REST APIs: naming, status codes, errors, pagination, breaking changes |
 | [architecture-diagram](skills/architecture-diagram) | Draw system, sequence, ERD or deployment diagrams in Mermaid, from the real code |

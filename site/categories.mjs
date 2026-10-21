@@ -16,8 +16,12 @@ export const CATEGORIES = [
     skills: ["security-audit", "web-performance-audit", "accessibility-audit", "seo-audit"],
   },
   {
-    title: "Design and architecture",
-    skills: ["figma-design-compare", "database-schema-design", "api-design-review", "architecture-diagram"],
+    title: "UI/UX design",
+    skills: ["design-review", "ux-research-synthesis", "design-handoff-spec", "ux-writing", "figma-design-compare"],
+  },
+  {
+    title: "Architecture",
+    skills: ["database-schema-design", "api-design-review", "architecture-diagram"],
   },
   {
     title: "DevOps",

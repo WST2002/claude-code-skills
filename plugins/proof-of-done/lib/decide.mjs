@@ -1,6 +1,8 @@
 import path from "node:path";
+import { tamperReason } from "./tamper.mjs";
 
 const SKIP_LINE = /Verification:\s*skipped\s*[—–-]+\s*(.+)/i;
+const TEST_CHANGES_LINE = /^\s*Test changes:\s*(.+)$/im;
 const FLAKY_MENTION = /\bflak(?:y|e[sd]?|iness)\b/i;
 const MIN_SKIP_REASON = 10;
 const MAX_FILES_LISTED = 5;
@@ -59,19 +61,30 @@ function latestRunPerCheck(runs) {
   return latest;
 }
 
-export function decide({ entries, lastMessage = "", stopHookActive = false, verifyCommands = [] }) {
+const explained = (pattern, message) => {
+  const match = pattern.exec(message ?? "");
+  return Boolean(match && match[1].trim().length >= MIN_SKIP_REASON);
+};
+
+function verificationProblem(entries, lastEdit, lastMessage, verifyCommands) {
+  if (explained(SKIP_LINE, lastMessage)) return null;
+  const runs = entries.slice(lastEdit + 1).filter((e) => e.type === "verify");
+  if (runs.length === 0) return unverifiedReason(entries, verifyCommands);
+  const latest = [...latestRunPerCheck(runs).values()];
+  const failing = latest.find((e) => !isPassing(e));
+  if (failing) return failedReason(failing);
+  const flaky = latest.find((e) => e.earlierFailure);
+  return flaky && !FLAKY_MENTION.test(lastMessage ?? "") ? flakyReason(flaky) : null;
+}
+
+/** `tampering`: test changes from findTampering that can make checks pass without a fix. */
+export function decide({ entries, lastMessage = "", stopHookActive = false, verifyCommands = [], tampering = [] }) {
   if (stopHookActive) return { allow: true };
   const lastEdit = entries.findLastIndex((e) => e.type === "edit");
   if (lastEdit === -1) return { allow: true };
-  const skip = SKIP_LINE.exec(lastMessage ?? "");
-  if (skip && skip[1].trim().length >= MIN_SKIP_REASON) return { allow: true };
-
-  const runs = entries.slice(lastEdit + 1).filter((e) => e.type === "verify");
-  if (runs.length === 0) return { allow: false, reason: unverifiedReason(entries, verifyCommands) };
-
-  const latest = [...latestRunPerCheck(runs).values()];
-  const failing = latest.find((e) => !isPassing(e));
-  if (failing) return { allow: false, reason: failedReason(failing) };
-  const flaky = latest.find((e) => e.earlierFailure);
-  return flaky && !FLAKY_MENTION.test(lastMessage ?? "") ? { allow: false, reason: flakyReason(flaky) } : { allow: true };
+  const problems = [
+    verificationProblem(entries, lastEdit, lastMessage, verifyCommands),
+    tampering.length && !explained(TEST_CHANGES_LINE, lastMessage) ? tamperReason(tampering) : null,
+  ].filter(Boolean);
+  return problems.length ? { allow: false, reason: problems.join("\n\n") } : { allow: true };
 }

@@ -131,3 +131,31 @@ test("a filtered passing run does not clear a failing full run", () => {
   assert.equal(verdict.allow, false);
   assert.match(verdict.reason, /`npm test` exited with code 1/);
 });
+
+const skipped = [{ file: "src/a.test.js", line: 3, kind: "skipped", text: 'it.skip("adds")' }];
+
+test("passing checks with a skipped test still block, naming the line", () => {
+  const verdict = decide({ entries: [edit(), run("npm test")], tampering: skipped });
+  assert.equal(verdict.allow, false);
+  assert.match(verdict.reason, /src\/a\.test\.js:3 skips or focuses tests: `it\.skip\("adds"\)`/);
+});
+
+test("a stated reason for a test change allows the stop", () => {
+  const lastMessage = "Done.\nTest changes: skipped the coupon test until the API returns the new field (ticket 42).";
+  assert.deepEqual(decide({ entries: [edit(), run("npm test")], tampering: skipped, lastMessage }), { allow: true });
+});
+
+test("a too-short test change reason does not count", () => {
+  assert.equal(decide({ entries: [edit(), run("npm test")], tampering: skipped, lastMessage: "Test changes: ok" }).allow, false);
+});
+
+test("missing verification and test tampering are reported together", () => {
+  const verdict = decide({ entries: [edit()], tampering: skipped });
+  assert.match(verdict.reason, /ran no verification after your last edit/);
+  assert.match(verdict.reason, /\n\nThese changes can make checks pass without fixing anything:/);
+});
+
+test("skipping verification honestly does not excuse test tampering", () => {
+  const lastMessage = "Verification: skipped — no test runner installed on this machine";
+  assert.equal(decide({ entries: [edit()], tampering: skipped, lastMessage }).allow, false);
+});

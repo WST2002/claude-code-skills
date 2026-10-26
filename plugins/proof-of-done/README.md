@@ -30,12 +30,18 @@ found a bug Claude had missed.*
      files deleted, errors hidden (`@ts-ignore`, `eslint-disable`, `# noqa`), or a
      coverage threshold lowered. A real, intended change is allowed when the report
      explains it on a line starting `Test changes:`
+   - new code but no test added or changed in the session (a new code file of
+     5+ lines, or 20+ changed lines in all) → Claude asks you once whether to
+     add a test. Say yes and it writes and runs one; say no and it notes
+     `No new tests: <reason>` in its report. It never asks twice about the same
+     files. Small edits, styles, markup, config, docs and scripts are left alone.
    - every check's latest run passed → allowed
 
 Test summaries are read from node --test, Jest, Vitest, pytest, Cargo and Mocha
 output. For other tools only the exit code counts. Test changes are read from
 `git diff` against the commit the session started from, so committing a weakened
-test does not hide it.
+test does not hide it. Missing tests are found the same way, so both checks need a
+git repository.
 
 3. If verification is genuinely impossible, the agent can end with
    `Verification: skipped — <reason>` and say so honestly.
@@ -63,13 +69,17 @@ Create `.claude/proof-of-done.json` in your project:
   "enabled": true,
   "verify": ["npm run lint", "npm test"],
   "ignore": ["generated/**", "*.snap"],
-  "tamper": true
+  "tamper": true,
+  "tests": "ask"
 }
 ```
 
 - `verify` replaces auto-detection.
 - `ignore` adds file globs that never count as code edits.
 - `tamper: false` turns off the test-change checks only.
+- `tests` decides what happens when code changes with no test: `"ask"` (default)
+  asks you once, `"strict"` blocks until a test is added or the report gives a
+  `No new tests:` reason, `"off"` never asks.
 - `enabled: false` turns the gate off for this project.
 
 Auto-detection covers npm/pnpm/yarn/bun scripts (`typecheck`, `lint`, `test`,

@@ -39,13 +39,24 @@ export function sessionDiff(cwd, baseline) {
   return `${git(cwd, "diff", "--no-color", "--no-ext-diff", "-U0", base, "--") ?? ""}\n${untrackedAsDiff(cwd)}`;
 }
 
+// The same path with short (8.3) names and links resolved, as git prints it; a deleted file keeps its own name.
+function realPath(file) {
+  try {
+    return fs.realpathSync.native(file);
+  } catch {
+    const parent = path.dirname(file);
+    return parent === file ? file : path.join(realPath(parent), path.basename(file));
+  }
+}
+
 // Files the session edited, relative to the repository root, or null when a shell command changed files it did not name.
 function editedFiles(cwd, entries) {
   const edits = entries.filter((e) => e.type === "edit");
   if (edits.some((e) => e.file === SHELL_EDIT)) return null;
   const root = git(cwd, "rev-parse", "--show-toplevel")?.trim();
   if (!root) return null;
-  return new Set(edits.map((e) => path.relative(root, path.resolve(e.cwd ?? cwd, nativePath(e.file))).split(path.sep).join("/")));
+  const realRoot = realPath(root);
+  return new Set(edits.map((e) => path.relative(realRoot, realPath(path.resolve(e.cwd ?? cwd, nativePath(e.file)))).split(path.sep).join("/")));
 }
 
 /**

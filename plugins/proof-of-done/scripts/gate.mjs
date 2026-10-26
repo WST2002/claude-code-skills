@@ -2,8 +2,8 @@ import { loadConfig } from "../lib/config.mjs";
 import { decide } from "../lib/decide.mjs";
 import { detectVerifyCommands } from "../lib/detect.mjs";
 import { pluginDataDir, readHookInput, warn } from "../lib/hook-io.mjs";
-import { ledgerPath, readLedger } from "../lib/ledger.mjs";
-import { sessionTampering } from "../lib/session-diff.mjs";
+import { appendEntry, ledgerPath, readLedger } from "../lib/ledger.mjs";
+import { sessionChecks } from "../lib/session-diff.mjs";
 
 function main() {
   const input = readHookInput();
@@ -14,16 +14,24 @@ function main() {
     return;
   }
   if (!config.enabled) return;
-  const entries = readLedger(ledgerPath(pluginDataDir(), input.session_id));
+  const ledger = ledgerPath(pluginDataDir(), input.session_id);
+  const entries = readLedger(ledger);
   const stopHookActive = input.stop_hook_active === true;
+  const { tampering, untested } = stopHookActive ? { tampering: [], untested: [] } : sessionChecks({ cwd: input.cwd, entries, config });
+  // A subagent cannot ask the user, so only the main agent asks about missing tests.
+  const askable = !(input.hook_event_name === "SubagentStop" && config.tests === "ask");
   const verdict = decide({
     entries,
     lastMessage: input.last_assistant_message,
     stopHookActive,
     verifyCommands: config.verify ?? detectVerifyCommands(input.cwd),
-    tampering: stopHookActive ? [] : sessionTampering({ cwd: input.cwd, entries, config }),
+    tampering,
+    untested: askable ? untested : [],
+    testsMode: config.tests,
   });
-  if (!verdict.allow) process.stdout.write(JSON.stringify({ decision: "block", reason: verdict.reason }));
+  if (verdict.allow) return;
+  if (verdict.askedAbout) appendEntry(ledger, { type: "tests-asked", files: verdict.askedAbout, cwd: input.cwd, at: new Date().toISOString() });
+  process.stdout.write(JSON.stringify({ decision: "block", reason: verdict.reason }));
 }
 
 try {

@@ -9,7 +9,7 @@ const NON_CODE_FILES = new Set(["package-lock.json", "pnpm-lock.yaml", "LICENSE"
 const DEFAULT_IGNORE = ["docs/**"];
 const GIT_BASH_DRIVE = /^\/([a-zA-Z])(?=\/|$)/;
 
-function nativePath(filePath) {
+export function nativePath(filePath) {
   return process.platform === "win32" ? filePath.replace(GIT_BASH_DRIVE, "$1:") : filePath;
 }
 

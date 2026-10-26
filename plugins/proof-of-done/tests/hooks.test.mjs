@@ -226,3 +226,58 @@ test("tamper checks can be switched off", (t) => {
   record({ tool_name: "Bash", tool_input: { command: "npm run test" } });
   assert.equal(stop().stdout, "");
 });
+
+const coupon = Array.from({ length: 8 }, (_, i) => `export const rule${i} = ${i};`).join("\n");
+
+test("new code with no test: the user is asked once, then the stop is allowed", (t) => {
+  const { project, record, stop, start } = gitProject(t);
+  start();
+  writeFiles(project, { "src/coupon.js": coupon });
+  record({ tool_name: "Write", tool_input: { file_path: path.join(project, "src/coupon.js") } });
+  record({ tool_name: "Bash", tool_input: { command: "npm run test" } });
+  const verdict = block(stop());
+  assert.match(verdict.reason, /You changed src\/coupon\.js, but no test was added or changed/);
+  assert.match(verdict.reason, /Ask the user once/);
+  assert.equal(stop({ last_assistant_message: "Should I add a test for src/coupon.js?" }).stdout, "");
+});
+
+test("a subagent is never told to ask the user about tests", (t) => {
+  const { project, record, stop, start } = gitProject(t);
+  start();
+  writeFiles(project, { "src/coupon.js": coupon });
+  record({ tool_name: "Write", tool_input: { file_path: path.join(project, "src/coupon.js") } });
+  record({ tool_name: "Bash", tool_input: { command: "npm run test" } });
+  assert.equal(stop({ hook_event_name: "SubagentStop" }).stdout, "");
+});
+
+test("an untracked file the session never edited is not asked about", (t) => {
+  const { project, record, stop, start } = gitProject(t);
+  writeFiles(project, { "src/old-draft.js": coupon });
+  start();
+  writeFiles(project, { "src/add.js": "export const add = (a, b) => b + a;\n" });
+  record({ tool_name: "Edit", tool_input: { file_path: path.join(project, "src/add.js") } });
+  record({ tool_name: "Bash", tool_input: { command: "npm run test" } });
+  assert.equal(stop().stdout, "");
+});
+
+test("strict mode blocks until a test is added or the report says why not", (t) => {
+  const { project, record, stop, start } = gitProject(t);
+  writeFiles(project, { ".claude/proof-of-done.json": { tests: "strict" } });
+  start();
+  writeFiles(project, { "src/coupon.js": coupon });
+  record({ tool_name: "Write", tool_input: { file_path: path.join(project, "src/coupon.js") } });
+  record({ tool_name: "Bash", tool_input: { command: "npm run test" } });
+  assert.match(block(stop()).reason, /Add or update tests that cover this change/);
+  assert.match(block(stop()).reason, /Add or update tests that cover this change/);
+  assert.equal(stop({ last_assistant_message: "No new tests: these are constants copied from the pricing sheet." }).stdout, "");
+});
+
+test("asking about tests can be switched off", (t) => {
+  const { project, record, stop, start } = gitProject(t);
+  writeFiles(project, { ".claude/proof-of-done.json": { tests: "off" } });
+  start();
+  writeFiles(project, { "src/coupon.js": coupon });
+  record({ tool_name: "Write", tool_input: { file_path: path.join(project, "src/coupon.js") } });
+  record({ tool_name: "Bash", tool_input: { command: "npm run test" } });
+  assert.equal(stop().stdout, "");
+});

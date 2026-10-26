@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.0
+
+- Asks about missing tests: when the session adds a code file or changes 20+ lines of code but adds or changes no test, Claude asks you once whether to add one. Say no and the report notes `No new tests: <reason>`. Small edits, styles, markup, config, docs and scripts are left alone, and subagents never ask.
+- `tests` in `.claude/proof-of-done.json`: `"ask"` (default), `"strict"` (blocks until a test is added or a reason is given) or `"off"`.
+
 ## 0.3.0
 
 - Catches test tampering: skipped or focused tests, weakened or always-true assertions, deleted tests, hidden errors (`@ts-ignore`, `eslint-disable`, `# noqa`) and lowered coverage thresholds, with file and line. An intended change is allowed when the report explains it on a `Test changes:` line.

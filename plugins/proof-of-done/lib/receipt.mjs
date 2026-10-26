@@ -7,13 +7,13 @@ function status(entry) {
   return entry.exitCode === 0 ? "✓ passed" : "? interrupted";
 }
 
-function gateLine(entries, { enabled, verifyCommands, tampering }) {
+function gateLine(entries, { enabled, verifyCommands, tampering, untested, testsMode }) {
   if (!enabled) return "**Gate:** proof-of-done is disabled for this project";
-  const verdict = decide({ entries, verifyCommands, tampering });
+  const verdict = decide({ entries, verifyCommands, tampering, untested, testsMode });
   return verdict.allow ? "**Gate:** ✅ would allow stopping" : `**Gate:** ⛔ would block — ${verdict.reason}`;
 }
 
-export function formatReceipt(entries, { enabled = true, verifyCommands = [], tampering = [] } = {}) {
+export function formatReceipt(entries, { enabled = true, verifyCommands = [], tampering = [], untested = [], testsMode = "ask" } = {}) {
   const files = [...new Set(entries.filter((e) => e.type === "edit").map((e) => e.file))];
   const runs = entries.filter((e) => e.type === "verify");
   const lines = [
@@ -25,7 +25,7 @@ export function formatReceipt(entries, { enabled = true, verifyCommands = [], ta
     `**Verification runs (${runs.length}):**`,
     ...(runs.length ? runs.map((e) => `- \`${e.command}\` ${status(e)} (${e.at})`) : ["- none"]),
     "",
-    gateLine(entries, { enabled, verifyCommands, tampering }),
+    gateLine(entries, { enabled, verifyCommands, tampering, untested, testsMode }),
   ];
   return `${lines.join("\n")}\n`;
 }

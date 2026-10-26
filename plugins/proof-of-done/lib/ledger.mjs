@@ -38,6 +38,7 @@ function isValidEntry(entry) {
   if (entry.type === "edit") return typeof entry.file === "string";
   if (entry.type === "verify") return typeof entry.command === "string";
   if (entry.type === "baseline") return typeof entry.sha === "string";
+  if (entry.type === "tests-asked") return Array.isArray(entry.files) && entry.files.every((f) => typeof f === "string");
   return false;
 }
 

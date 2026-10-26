@@ -18,17 +18,19 @@ const NON_CODE = /\.(md|mdx|txt|rst|lock)$|(^|\/)(package-lock\.json|pnpm-lock\.
 
 export const isTestFile = (file) => TEST_FILE.some((re) => re.test(file));
 
-function parseDiff(diff) {
+/** Files in a unified diff, each with its hunks and whether it was created or deleted. */
+export function parseDiff(diff) {
   const files = [];
   let file = null;
   let line = 0;
   let hunk = null;
   for (const raw of diff.split("\n")) {
     if (raw.startsWith("diff --git ")) {
-      file = { path: raw.replace(/^diff --git a\/.* b\//, ""), deleted: false, hunks: [] };
+      file = { path: raw.replace(/^diff --git a\/.* b\//, ""), created: false, deleted: false, hunks: [] };
       files.push(file);
       hunk = null;
     } else if (!file) continue;
+    else if (raw.startsWith("new file mode")) file.created = true;
     else if (raw.startsWith("deleted file mode")) file.deleted = true;
     else if (raw.startsWith("+++ ") && raw !== "+++ /dev/null") file.path = raw.slice(4).replace(/^b\//, "");
     else if (raw.startsWith("@@")) {

@@ -159,3 +159,45 @@ test("skipping verification honestly does not excuse test tampering", () => {
   const lastMessage = "Verification: skipped — no test runner installed on this machine";
   assert.equal(decide({ entries: [edit()], tampering: skipped, lastMessage }).allow, false);
 });
+
+const untested = [{ file: "src/coupon.js", lines: 12, created: true }];
+
+test("code with no test change: ask the user once, naming the file", () => {
+  const verdict = decide({ entries: [edit(), run("npm test")], untested });
+  assert.equal(verdict.allow, false);
+  assert.match(verdict.reason, /You changed src\/coupon\.js, but no test was added or changed/);
+  assert.match(verdict.reason, /Ask the user once/);
+  assert.deepEqual(verdict.askedAbout, ["src/coupon.js"]);
+});
+
+test("files the user was already asked about are not asked about again", () => {
+  const entries = [edit(), run("npm test"), { type: "tests-asked", files: ["src/coupon.js"] }];
+  assert.deepEqual(decide({ entries, untested }), { allow: true });
+  const more = [...untested, { file: "src/cart.js", lines: 30, created: false }];
+  const verdict = decide({ entries, untested: more });
+  assert.match(verdict.reason, /You changed src\/cart\.js, but/);
+  assert.deepEqual(verdict.askedAbout, ["src/cart.js"]);
+});
+
+test("a stated reason for no new tests allows the stop", () => {
+  const lastMessage = "Done.\nNo new tests: the user said this is a throwaway prototype.";
+  assert.deepEqual(decide({ entries: [edit(), run("npm test")], untested, lastMessage }), { allow: true });
+  assert.equal(decide({ entries: [edit(), run("npm test")], untested, lastMessage: "No new tests: no" }).allow, false);
+});
+
+test("strict mode asks for tests every time and never records a question", () => {
+  const entries = [edit(), run("npm test"), { type: "tests-asked", files: ["src/coupon.js"] }];
+  const verdict = decide({ entries, untested, testsMode: "strict" });
+  assert.match(verdict.reason, /Add or update tests that cover this change/);
+  assert.equal(verdict.askedAbout, undefined);
+});
+
+test("tests mode off never asks", () => {
+  assert.deepEqual(decide({ entries: [edit(), run("npm test")], untested, testsMode: "off" }), { allow: true });
+});
+
+test("missing verification and missing tests are reported together", () => {
+  const verdict = decide({ entries: [edit()], untested });
+  assert.match(verdict.reason, /ran no verification after your last edit/);
+  assert.match(verdict.reason, /\n\nYou changed src\/coupon\.js/);
+});

@@ -37,3 +37,11 @@ test("unverified edits name the project's commands", () => {
 test("disabled projects say so instead of a verdict", () => {
   assert.match(formatReceipt([{ type: "edit", file: "/p/a.ts", at: "t1" }], { enabled: false }), /disabled for this project/);
 });
+
+test("code changed with no test shows in the gate verdict", () => {
+  const text = formatReceipt([
+    { type: "edit", file: "/p/src/coupon.js", at: "t1" },
+    { type: "verify", command: "npm test", exitCode: 0, masked: false, at: "t2" },
+  ], { untested: [{ file: "src/coupon.js", lines: 12, created: true }] });
+  assert.match(text, /would block — You changed src\/coupon\.js, but no test was added or changed/);
+});

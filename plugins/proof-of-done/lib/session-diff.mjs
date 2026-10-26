@@ -1,8 +1,10 @@
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { matchesGlob } from "./classify.mjs";
+import { matchesGlob, nativePath } from "./classify.mjs";
+import { SHELL_EDIT } from "./shell.mjs";
 import { findTampering } from "./tamper.mjs";
+import { findUntested } from "./untested.mjs";
 
 const MAX_NEW_FILE_BYTES = 256 * 1024;
 const MAX_NEW_FILES = 200;
@@ -37,13 +39,32 @@ export function sessionDiff(cwd, baseline) {
   return `${git(cwd, "diff", "--no-color", "--no-ext-diff", "-U0", base, "--") ?? ""}\n${untrackedAsDiff(cwd)}`;
 }
 
-/** Test-weakening changes made in this session, or [] when the check is off or the project is not a git repository. */
-export function sessionTampering({ cwd, entries, config }) {
-  if (config.tamper === false || !entries.some((e) => e.type === "edit")) return [];
+// Files the session edited, relative to the repository root, or null when a shell command changed files it did not name.
+function editedFiles(cwd, entries) {
+  const edits = entries.filter((e) => e.type === "edit");
+  if (edits.some((e) => e.file === SHELL_EDIT)) return null;
+  const root = git(cwd, "rev-parse", "--show-toplevel")?.trim();
+  if (!root) return null;
+  return new Set(edits.map((e) => path.relative(root, path.resolve(e.cwd ?? cwd, nativePath(e.file))).split(path.sep).join("/")));
+}
+
+/**
+ * The session's test changes that can make checks pass without a fix (`tampering`), and code changed with no test
+ * change (`untested`). Both are [] when their check is off or the project is not a git repository.
+ */
+export function sessionChecks({ cwd, entries, config }) {
+  const none = { tampering: [], untested: [] };
+  const tamper = config.tamper !== false;
+  const tests = (config.tests ?? "ask") !== "off";
+  if ((!tamper && !tests) || !entries.some((e) => e.type === "edit")) return none;
   // SessionStart also fires on resume and compaction; the first baseline is where the session began.
   const baseline = entries.find((e) => e.type === "baseline")?.sha;
   const diff = sessionDiff(cwd, baseline);
-  if (!diff) return [];
+  if (!diff) return none;
   const ignore = (file) => (config.ignore ?? []).some((glob) => matchesGlob(file, glob));
-  return findTampering(diff, ignore);
+  const edited = tests ? editedFiles(cwd, entries) : null;
+  return {
+    tampering: tamper ? findTampering(diff, ignore) : [],
+    untested: tests ? findUntested(diff, ignore, (file) => !edited || edited.has(file)) : [],
+  };
 }

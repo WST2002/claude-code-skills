@@ -1,8 +1,10 @@
 import path from "node:path";
 import { tamperReason } from "./tamper.mjs";
+import { untestedReason } from "./untested.mjs";
 
 const SKIP_LINE = /Verification:\s*skipped\s*[—–-]+\s*(.+)/i;
 const TEST_CHANGES_LINE = /^\s*Test changes:\s*(.+)$/im;
+const NO_NEW_TESTS_LINE = /^\s*No new tests:\s*(.+)$/im;
 const FLAKY_MENTION = /\bflak(?:y|e[sd]?|iness)\b/i;
 const MIN_SKIP_REASON = 10;
 const MAX_FILES_LISTED = 5;
@@ -77,14 +79,30 @@ function verificationProblem(entries, lastEdit, lastMessage, verifyCommands) {
   return flaky && !FLAKY_MENTION.test(lastMessage ?? "") ? flakyReason(flaky) : null;
 }
 
-/** `tampering`: test changes from findTampering that can make checks pass without a fix. */
-export function decide({ entries, lastMessage = "", stopHookActive = false, verifyCommands = [], tampering = [] }) {
+// In "ask" mode the user is asked about each file once; in "strict" mode only a stated reason lets it through.
+function untestedProblem(entries, untested, testsMode, lastMessage) {
+  if (testsMode === "off" || explained(NO_NEW_TESTS_LINE, lastMessage)) return null;
+  const asked = new Set(entries.filter((e) => e.type === "tests-asked").flatMap((e) => e.files));
+  const files = testsMode === "strict" ? untested : untested.filter((f) => !asked.has(f.file));
+  return files.length ? { reason: untestedReason(files, testsMode), files: files.map((f) => f.file) } : null;
+}
+
+/**
+ * `tampering`: test changes from findTampering that can make checks pass without a fix.
+ * `untested`: code changed with no test change, from findUntested; `testsMode` is "ask", "strict" or "off".
+ * A block that asks the user about untested files returns them as `askedAbout`, so they are not asked about again.
+ */
+export function decide({ entries, lastMessage = "", stopHookActive = false, verifyCommands = [], tampering = [], untested = [], testsMode = "ask" }) {
   if (stopHookActive) return { allow: true };
   const lastEdit = entries.findLastIndex((e) => e.type === "edit");
   if (lastEdit === -1) return { allow: true };
+  const missingTests = untestedProblem(entries, untested, testsMode, lastMessage);
   const problems = [
     verificationProblem(entries, lastEdit, lastMessage, verifyCommands),
     tampering.length && !explained(TEST_CHANGES_LINE, lastMessage) ? tamperReason(tampering) : null,
+    missingTests?.reason,
   ].filter(Boolean);
-  return problems.length ? { allow: false, reason: problems.join("\n\n") } : { allow: true };
+  if (!problems.length) return { allow: true };
+  const verdict = { allow: false, reason: problems.join("\n\n") };
+  return missingTests && testsMode === "ask" ? { ...verdict, askedAbout: missingTests.files } : verdict;
 }

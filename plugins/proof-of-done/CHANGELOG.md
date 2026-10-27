@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.1
+
+- `go test` where no package ran a test (`[no test files]`, `[no tests to run]`) and Jest or Vitest with `--passWithNoTests` that found nothing now count as 0 tests ran, so they no longer pass as proof.
+
 ## 0.4.0
 
 - Asks about missing tests: when the session adds a code file or changes 20+ lines of code but adds or changes no test, Claude asks you once whether to add one. Say no and the report notes `No new tests: <reason>`. Small edits, styles, markup, config, docs and scripts are left alone, and subagents never ask.

@@ -58,6 +58,22 @@ test("Mocha summary", () => {
   assert.equal(testsRun("  2 passing (9ms)\n  1 failing"), 3);
 });
 
+test("Jest and Vitest with --passWithNoTests ran 0 tests", () => {
+  assert.equal(testsRun("No tests found, exiting with code 0"), 0);
+  assert.equal(testsRun("\nfilter:  src\ninclude: **/*.test.ts\n\nNo test files found, exiting with code 0\n"), 0);
+});
+
+test("go test where no package has tests ran 0 tests", () => {
+  assert.equal(testsRun("?   \tshop/cart\t[no test files]\n?   \tshop/coupon\t[no test files]"), 0);
+  assert.equal(testsRun("ok  \tshop/cart\t0.004s [no tests to run]\n?   \tshop/coupon\t[no test files]"), 0);
+});
+
+test("go test where a package ran tests is not counted as 0", () => {
+  assert.equal(testsRun("?   \tshop/coupon\t[no test files]\nok  \tshop/cart\t0.004s"), null);
+  assert.equal(testsRun("ok  \tshop/cart\t(cached)"), null);
+  assert.equal(testsRun("--- FAIL: TestTotal (0.00s)\nFAIL\nFAIL\tshop/cart\t0.003s"), null);
+});
+
 test("output without a test summary is unknown", () => {
   for (const output of ["vite v5 building for production...\n✓ built in 1.2s", "", undefined, "Found 0 errors."]) {
     assert.equal(testsRun(output), null, String(output));

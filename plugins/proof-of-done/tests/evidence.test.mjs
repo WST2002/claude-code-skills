@@ -38,6 +38,13 @@ test("a run's output records how many tests ran", () => {
   assert.equal(entriesFor(passed, config, [])[0].testsRun, 3);
 });
 
+test("go test and jest --passWithNoTests that found nothing record 0 tests", () => {
+  const go = payload({ tool_name: "Bash", tool_input: { command: "go test ./..." }, tool_response: { stdout: "?   \tshop/cart\t[no test files]\n", stderr: "" } });
+  assert.equal(entriesFor(go, config, [])[0].testsRun, 0);
+  const jest = payload({ tool_name: "Bash", tool_input: { command: "npx jest --passWithNoTests" }, tool_response: { stdout: "", stderr: "No tests found, exiting with code 0\n" } });
+  assert.equal(entriesFor(jest, config, [])[0].testsRun, 0);
+});
+
 test("output without a test summary records no test count", () => {
   const [entry] = entriesFor(payload({ tool_name: "Bash", tool_input: { command: "npm run build" }, tool_response: { stdout: "built in 1s" } }), config, []);
   assert.equal("testsRun" in entry, false);

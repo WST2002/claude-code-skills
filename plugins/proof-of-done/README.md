@@ -20,7 +20,8 @@ found a bug Claude had missed.*
    - the latest run of any check failed, was interrupted, or had its exit code
      hidden (`| tail`, `|| true`) → blocked, with the reason
    - a test run exited 0 but its summary shows 0 tests ran (every test
-     skipped, or no test files found) → blocked
+     skipped, or no test files found, including `go test` packages with
+     `[no test files]` and Jest/Vitest `--passWithNoTests`) → blocked
    - a check failed and then passed with no edit in between → flagged as flaky;
      blocked until the report says the check is flaky
    - test changes that make checks pass without a fix → blocked, with file and

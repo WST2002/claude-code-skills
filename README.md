@@ -34,7 +34,7 @@ Or copy any folder from [`skills/`](skills) into `~/.claude/skills/`
 
 ![proof-of-done stops Claude Code from finishing without running the tests; the tests then find a bug it missed](media/proof-of-done-demo.gif)
 
-*proof-of-done in a real Claude Code session: Claude skipped the tests, the plugin made it run them, and they found a bug it had missed.*
+*proof-of-done in a real Claude Code session: Claude skipped the tests, the plugin made it run them, and they found a bug it had missed.* ▶ [Watch the 36-second demo on YouTube](https://youtube.com/shorts/ozlYRXQTs-U)
 
 ## Skills
 
@@ -144,4 +144,4 @@ MIT © Wageesha Tripathi
 
 ---
 
-Made by **Wageesha Tripathi** · [LinkedIn](https://www.linkedin.com/in/wst2002/) · [Email](mailto:tripathiwageesha2002@gmail.com)
+Made by **Wageesha Tripathi** · [LinkedIn](https://www.linkedin.com/in/wst2002/) · [Email](mailto:tripathiwageesha2002@gmail.com) · [YouTube](https://www.youtube.com/@wst2002rk)

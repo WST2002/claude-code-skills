@@ -9,6 +9,8 @@ run and passed after the last edit.
 had not run the tests. proof-of-done blocked the stop, the tests ran, and one of them
 found a bug Claude had missed.*
 
+▶ [Watch the 36-second demo on YouTube](https://youtube.com/shorts/ozlYRXQTs-U)
+
 ## How it works
 
 1. Every code edit and every verification command (tests, build, lint, typecheck)
@@ -92,4 +94,4 @@ Node.js 18 or newer on your `PATH`.
 
 ---
 
-Made by **Wageesha Tripathi** · [LinkedIn](https://www.linkedin.com/in/wst2002/) · [Email](mailto:tripathiwageesha2002@gmail.com) · [More skills](https://github.com/WST2002/claude-code-skills)
+Made by **Wageesha Tripathi** · [LinkedIn](https://www.linkedin.com/in/wst2002/) · [Email](mailto:tripathiwageesha2002@gmail.com) · [More skills](https://github.com/WST2002/claude-code-skills) · [YouTube](https://www.youtube.com/@wst2002rk)

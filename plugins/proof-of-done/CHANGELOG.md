@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.2
+
+- A check that failed before the last edit must run again: a different check passing (lint after a failing test) no longer clears it. The stop is blocked until that check runs again, or the report gives `Verification: skipped — <reason>`.
+
 ## 0.4.1
 
 - `go test` where no package ran a test (`[no test files]`, `[no tests to run]`) and Jest or Vitest with `--passWithNoTests` that found nothing now count as 0 tests ran, so they no longer pass as proof.

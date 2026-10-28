@@ -26,6 +26,8 @@ found a bug Claude had missed.*
    - a test run exited 0 but its summary shows 0 tests ran (every test
      skipped, or no test files found, including `go test` packages with
      `[no test files]` and Jest/Vitest `--passWithNoTests`) → blocked
+   - a check failed before the last edit and has not run since → blocked until
+     it runs again, so a passing lint cannot clear a failing test
    - a check failed and then passed with no edit in between → flagged as flaky;
      blocked until the report says the check is flaky
    - test changes that make checks pass without a fix → blocked, with file and

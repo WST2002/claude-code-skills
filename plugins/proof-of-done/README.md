@@ -9,7 +9,7 @@ run and passed after the last edit.
 had not run the tests. proof-of-done blocked the stop, the tests ran, and one of them
 found a bug Claude had missed.*
 
-▶ [Watch the 36-second demo on YouTube](https://youtube.com/shorts/ozlYRXQTs-U)
+▶ [Watch the 36-second demo on YouTube](https://youtube.com/shorts/ozlYRXQTs-U) · Featured on the [HOL blog](https://hol.org/blog/proof-of-done-checks-the-last-change)
 
 ## How it works
 

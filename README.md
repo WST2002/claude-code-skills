@@ -34,7 +34,7 @@ Or copy any folder from [`skills/`](skills) into `~/.claude/skills/`
 
 ![proof-of-done stops Claude Code from finishing without running the tests; the tests then find a bug it missed](media/proof-of-done-demo.gif)
 
-*proof-of-done in a real Claude Code session: Claude skipped the tests, the plugin made it run them, and they found a bug it had missed.* ▶ [Watch the 36-second demo on YouTube](https://youtube.com/shorts/ozlYRXQTs-U)
+*proof-of-done in a real Claude Code session: Claude skipped the tests, the plugin made it run them, and they found a bug it had missed.* ▶ [Watch the 36-second demo on YouTube](https://youtube.com/shorts/ozlYRXQTs-U) · Featured on the [HOL blog](https://hol.org/blog/proof-of-done-checks-the-last-change)
 
 ## Skills
 

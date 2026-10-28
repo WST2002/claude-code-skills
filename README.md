@@ -36,6 +36,8 @@ Or copy any folder from [`skills/`](skills) into `~/.claude/skills/`
 
 *proof-of-done in a real Claude Code session: Claude skipped the tests, the plugin made it run them, and they found a bug it had missed.* ▶ [Watch the 36-second demo on YouTube](https://youtube.com/shorts/ozlYRXQTs-U) · Featured on the [HOL blog](https://hol.org/blog/proof-of-done-checks-the-last-change)
 
+📖 You can also read the story behind it on dev.to: [Your AI said "fixed" but never ran the tests? I made a plugin that won't let it say "done" until they pass](https://dev.to/wst2002rk/your-ai-said-fixed-but-never-ran-the-tests-i-made-a-plugin-that-wont-let-it-say-done-until-5531)
+
 ## Skills
 
 ### Code quality

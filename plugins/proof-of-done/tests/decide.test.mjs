@@ -132,6 +132,39 @@ test("a filtered passing run does not clear a failing full run", () => {
   assert.match(verdict.reason, /`npm test` exited with code 1/);
 });
 
+test("a failing check is not cleared by a different check passing after a later edit", () => {
+  const entries = [edit(), checked(run("npm test", 1), "npm test"), edit(), checked(run("npm run lint"), "npm lint")];
+  const verdict = decide({ entries });
+  assert.equal(verdict.allow, false);
+  assert.match(verdict.reason, /`npm test` failed \(exit 1\) before your last edit and has not run since/);
+});
+
+test("a failing check run again and passing after the last edit: allow", () => {
+  const entries = [edit(), checked(run("npm test", 1), "npm test"), edit(), checked(run("npm run lint"), "npm lint"), checked(run("npm test"), "npm test")];
+  assert.deepEqual(decide({ entries }), { allow: true });
+});
+
+test("a failing filtered run is cleared by a full run of the same check after the last edit", () => {
+  const entries = [edit(), checked(run("npm test -- a.test.js", 1), "npm test", "-- a.test.js"), edit(), checked(run("npm test"), "npm test")];
+  assert.deepEqual(decide({ entries }), { allow: true });
+});
+
+test("a check that failed and then passed before the last edit is not stale", () => {
+  const entries = [edit(), checked(run("npm test", 1), "npm test"), edit(), checked(run("npm test"), "npm test"), edit(), checked(run("npm run lint"), "npm lint")];
+  assert.deepEqual(decide({ entries }), { allow: true });
+});
+
+test("a masked or interrupted run before the last edit is not stale", () => {
+  const entries = [edit(), checked(run("npm test | tail", 0, true), "npm test"), checked(run("npm run build", null), "npm build"), edit(), checked(run("npm run lint"), "npm lint")];
+  assert.deepEqual(decide({ entries }), { allow: true });
+});
+
+test("a stale failure is allowed with an honest skip line", () => {
+  const entries = [edit(), checked(run("npm test", 1), "npm test"), edit(), checked(run("npm run lint"), "npm lint")];
+  const lastMessage = "Fixed lint.\n\nVerification: skipped — npm test needs the staging database";
+  assert.deepEqual(decide({ entries, lastMessage }), { allow: true });
+});
+
 const skipped = [{ file: "src/a.test.js", line: 3, kind: "skipped", text: 'it.skip("adds")' }];
 
 test("passing checks with a skipped test still block, naming the line", () => {

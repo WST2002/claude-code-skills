@@ -63,6 +63,16 @@ function latestRunPerCheck(runs) {
   return latest;
 }
 
+function staleFailureReason(entry) {
+  return `\`${entry.command}\` failed (exit ${entry.exitCode}) before your last edit and has not run since, so the failure may still be there. Run it again and report the result. ${SKIP_HINT}`;
+}
+
+// A check whose latest run in the session failed before the last edit: a different check passing does not clear it.
+function staleFailure(entries, lastEdit) {
+  const runs = entries.map((e, at) => ({ ...e, at })).filter((e) => e.type === "verify");
+  return [...latestRunPerCheck(runs).values()].find((e) => e.at < lastEdit && hasFailed(e));
+}
+
 const explained = (pattern, message) => {
   const match = pattern.exec(message ?? "");
   return Boolean(match && match[1].trim().length >= MIN_SKIP_REASON);
@@ -75,6 +85,8 @@ function verificationProblem(entries, lastEdit, lastMessage, verifyCommands) {
   const latest = [...latestRunPerCheck(runs).values()];
   const failing = latest.find((e) => !isPassing(e));
   if (failing) return failedReason(failing);
+  const stale = staleFailure(entries, lastEdit);
+  if (stale) return staleFailureReason(stale);
   const flaky = latest.find((e) => e.earlierFailure);
   return flaky && !FLAKY_MENTION.test(lastMessage ?? "") ? flakyReason(flaky) : null;
 }

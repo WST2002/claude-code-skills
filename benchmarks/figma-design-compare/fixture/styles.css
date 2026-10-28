@@ -1,0 +1,107 @@
+:root {
+  --purple: #8257e5;
+  --purple-lighter: #9871f5;
+  --green: #04d361;
+  --text-in-purple: #d4c2ff;
+  --title-in-purple: #ffffff;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--purple);
+  font-family: Poppins, sans-serif;
+}
+
+.landing {
+  position: relative;
+  width: 1440px;
+  height: 820px;
+  margin: 0 auto;
+}
+
+.intro {
+  position: absolute;
+  left: 160px;
+  top: 202px;
+}
+
+.logo {
+  display: block;
+  width: 434px;
+  height: 127px;
+}
+
+.intro h1 {
+  margin-top: 24px;
+  font: 400 32px/46px Poppins, sans-serif;
+  color: #c1bccc;
+}
+
+.hero {
+  position: absolute;
+  left: 681px;
+  top: 140px;
+  width: 599px;
+  height: 350px;
+}
+
+.actions {
+  position: absolute;
+  left: 160px;
+  top: 576px;
+  width: 1121px;
+  height: 104px;
+  display: flex;
+  align-items: center;
+}
+
+.buttons {
+  display: flex;
+  gap: 24px;
+}
+
+.button {
+  display: flex;
+  align-items: center;
+  height: 104px;
+  padding-left: 64px;
+  border-radius: 4px;
+  font: 700 24px/26px Poppins, sans-serif;
+  color: var(--title-in-purple);
+  text-decoration: none;
+}
+
+.button img {
+  width: 40px;
+  height: 40px;
+  margin-right: 16px;
+}
+
+.button.study {
+  width: 282px;
+  background: #916bea;
+}
+
+.button.teach {
+  width: 301px;
+  background: var(--green);
+}
+
+.connections {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  font: 400 14px/20px Poppins, sans-serif;
+  color: var(--text-in-purple);
+}
+
+.connections img {
+  width: 14px;
+  height: 12px;
+  margin-left: 8px;
+}

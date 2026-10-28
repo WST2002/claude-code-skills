@@ -6,7 +6,7 @@ How the skills were tested: the same task, on the same sample project, run once 
 
 ## Summary
 
-26 of 27 skills are benchmarked. `figma-design-compare` needs a real Figma file and token, so it is not included.
+All 27 skills are benchmarked.
 
 | Skill | Answer key covered (without → with skill) | What the skill added |
 |---|---|---|
@@ -35,9 +35,10 @@ How the skills were tested: the same task, on the same sample project, run once 
 | [codebase-onboarding](codebase-onboarding) | stale README caught, 6/6 flow → same | Ports and setup steps verified from config |
 | [dependency-upgrade](dependency-upgrade) | breaking changes found → same | Warns against `--force` |
 | [architecture-diagram](architecture-diagram) | text only, no diagram → Mermaid diagram | Subgraphs, labelled arrows, no invented parts |
+| [figma-design-compare](#figma-design-compare--fixture--answer-key) | 10/10 → 10/10, 1 false alarm → 0 | `file:line` and fix for every mismatch, impact rating |
 | [proof-of-done-lite](proof-of-done-lite) | change made, no receipt → change + test + receipt | `Verified: npm test ✓` receipt |
 
-Fixtures and answer keys for each are in the linked folders. Detailed write-ups for the first eight follow.
+Fixtures and answer keys for each are in the linked folders. Detailed write-ups for the first eight and figma-design-compare follow.
 
 ## Results
 
@@ -135,6 +136,21 @@ Prompt: *"Write a README for this project."* · Traps: Apache-2.0 (not MIT) lice
 | Known issues documented in the README | No | Yes |
 
 The fixture's `src/convert.js` accidentally contains a syntax error; both runs found and reported it without touching the code.
+
+### figma-design-compare — [fixture](figma-design-compare/fixture) · [answer key](figma-design-compare/answer-key.md)
+
+Prompt: *"Check whether the built page matches its Figma design, and report every difference."* · Design: the open-source [Proffy](https://github.com/rocketseat-education/nlw-02-discovery) landing page by Rocketseat (MIT), [Figma frame "Home"](https://www.figma.com/design/GHGS126t7WYjnPZdRKChJF/Proffy-Web?node-id=81-666). The fixture is a static build of that frame that first matched it within 2 px, then got 10 seeded mismatches. One decoy: the counter shows real data ("200") where Figma shows "285".
+
+| | Without skill | With skill |
+|---|---|---|
+| Seeded mismatches found | 10 / 10 | 10 / 10 |
+| False alarms | 1 (reported the "200 vs 285" counter as a High defect) | 0 (listed it as content, not a design defect) |
+| `file:line` for every mismatch | No | Yes |
+| Exact fix for every mismatch | No | Yes (the CSS value, using the existing color tokens) |
+| Summary line with mismatch count and impact | No | Yes |
+| "Matches" list of what was checked and correct | Yes | Yes |
+
+Both runs used the Figma MCP server and Playwright with Chrome at 1440×820.
 
 ## What this shows
 

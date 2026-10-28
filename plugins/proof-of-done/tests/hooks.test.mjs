@@ -281,3 +281,16 @@ test("asking about tests can be switched off", (t) => {
   record({ tool_name: "Bash", tool_input: { command: "npm run test" } });
   assert.equal(stop().stdout, "");
 });
+
+test("a failed test is not cleared by lint passing after a later edit, only by the test passing", (t) => {
+  const { project, record, stop } = setup(t);
+  writeFiles(project, { "package.json": { scripts: { lint: "eslint .", test: "node --test" } } });
+  const editFile = () => record({ tool_name: "Edit", tool_input: { file_path: path.join(project, "src/a.js") } });
+  editFile();
+  record({ hook_event_name: "PostToolUseFailure", tool_name: "Bash", tool_input: { command: "npm run test" }, error: "Exit code 1\nfail" });
+  editFile();
+  record({ tool_name: "Bash", tool_input: { command: "npm run lint" } });
+  assert.match(block(stop()).reason, /`npm run test` failed \(exit 1\) before your last edit and has not run since/);
+  record({ tool_name: "Bash", tool_input: { command: "npm test" } });
+  assert.equal(stop().stdout, "");
+});

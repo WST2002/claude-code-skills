@@ -1,6 +1,6 @@
 {
   "name": "proof-of-done",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "Blocks the agent from finishing after code changes until tests, build or lint have passed.",
   "author": {
     "name": "Wageesha Tripathi",

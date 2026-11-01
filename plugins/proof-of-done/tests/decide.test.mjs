@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import path from "node:path";
 import { decide } from "../lib/decide.mjs";
 
 const edit = (file = "/p/src/a.ts") => ({ type: "edit", file });
@@ -233,4 +234,61 @@ test("missing verification and missing tests are reported together", () => {
   const verdict = decide({ entries: [edit()], untested });
   assert.match(verdict.reason, /ran no verification after your last edit/);
   assert.match(verdict.reason, /\n\nYou changed src\/coupon\.js/);
+});
+
+const repo = path.resolve("/repo");
+const workspaces = (rootTest = "npm test -w packages/web", manager = "npm") => ({
+  root: repo,
+  manager,
+  scripts: { test: rootTest },
+  packages: [
+    { dir: "packages/api", name: "api", scripts: { test: "node --test" } },
+    { dir: "packages/docs-site", name: "docs-site", scripts: { build: "vite build" } },
+    { dir: "packages/web", name: "web", scripts: { test: "node --test" } },
+  ],
+});
+const wsEdit = (rel) => ({ type: "edit", file: path.join(repo, rel), cwd: repo });
+const wsRun = (command, check, args = "", exitCode = 0) => ({ type: "verify", command, check, args, exitCode, masked: false, cwd: repo });
+
+test("monorepo: a root run that skips the changed package's tests blocks, naming the command to run", () => {
+  const verdict = decide({ entries: [wsEdit("packages/api/src/order.js"), wsRun("npm test", "npm test")], workspaces: workspaces() });
+  assert.equal(verdict.allow, false);
+  assert.match(verdict.reason, /packages\/api/);
+  assert.match(verdict.reason, /`npm test -w packages\/api`/);
+});
+
+test("monorepo: a run that covers the changed package allows", () => {
+  for (const entry of [
+    wsRun("npm test -w packages/api", "npm test", "-w packages/api"),
+    wsRun("npm test --workspaces", "npm test", "--workspaces"),
+    { ...wsRun("npm test", "npm test"), cwd: path.join(repo, "packages/api") },
+  ]) {
+    assert.deepEqual(decide({ entries: [wsEdit("packages/api/src/order.js"), entry], workspaces: workspaces() }), { allow: true }, entry.command);
+  }
+  const everything = decide({ entries: [wsEdit("packages/api/src/order.js"), wsRun("npm test", "npm test")], workspaces: workspaces("npm test --workspaces") });
+  assert.deepEqual(everything, { allow: true });
+});
+
+test("monorepo: the suggested command matches the package manager", () => {
+  const pnpm = decide({ entries: [wsEdit("packages/api/a.js"), wsRun("pnpm test", "pnpm test")], workspaces: workspaces("pnpm --filter web test", "pnpm") });
+  assert.match(pnpm.reason, /`pnpm --filter api test`/);
+  const yarn = decide({ entries: [wsEdit("packages/api/a.js"), wsRun("yarn test", "yarn test")], workspaces: workspaces("yarn workspace web test", "yarn") });
+  assert.match(yarn.reason, /`yarn workspace api test`/);
+});
+
+test("monorepo: a covering run from before the package's last edit does not count", () => {
+  const entries = [wsEdit("packages/api/a.js"), wsRun("npm test -w api", "npm test", "-w api"), wsEdit("packages/api/b.js"), wsRun("npm test", "npm test")];
+  assert.equal(decide({ entries, workspaces: workspaces() }).allow, false);
+});
+
+test("monorepo: packages without a test script, files outside packages, and an explained skip are not held up", () => {
+  const ws = workspaces();
+  assert.deepEqual(decide({ entries: [wsEdit("packages/docs-site/src/a.js"), wsRun("npm test", "npm test")], workspaces: ws }), { allow: true });
+  assert.deepEqual(decide({ entries: [wsEdit("scripts/release.js"), wsRun("npm test", "npm test")], workspaces: ws }), { allow: true });
+  const skipped = decide({ entries: [wsEdit("packages/api/a.js"), wsRun("npm test", "npm test")], workspaces: ws, lastMessage: "Verification: skipped — the api tests need a database I don't have" });
+  assert.deepEqual(skipped, { allow: true });
+});
+
+test("not a monorepo: a root run is enough, as before", () => {
+  assert.deepEqual(decide({ entries: [wsEdit("packages/api/a.js"), wsRun("npm test", "npm test")] }), { allow: true });
 });

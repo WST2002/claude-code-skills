@@ -172,6 +172,33 @@ function scopeOfRun(check, args, baseRel, ws, depth = 0) {
   return scope === "plain" ? scopeOfRootScript(check, ws, depth) : scope;
 }
 
+const NPM_PLACEHOLDER_TEST = /no test specified/;
+const hasTests = (pkg) => typeof pkg.scripts.test === "string" && !NPM_PLACEHOLDER_TEST.test(pkg.scripts.test);
+
+/**
+ * Packages with their own tests whose code changed, but that no passing run after their last edit covered.
+ * `isPassing` decides which runs count, so this follows the same rules as the rest of the gate.
+ */
+export function uncoveredPackages(entries, ws, isPassing) {
+  const lastEdit = new Map();
+  entries.forEach((e, at) => {
+    if (e.type !== "edit") return;
+    const pkg = packageOf(e.file, e.cwd, ws);
+    if (pkg && hasTests(pkg)) lastEdit.set(pkg, at);
+  });
+  return [...lastEdit]
+    .filter(([pkg, at]) => !entries.slice(at + 1).some((e) => e.type === "verify" && isPassing(e) && covers(e, pkg, ws)))
+    .map(([pkg]) => pkg);
+}
+
+/** The command that runs one package's tests with this monorepo's package manager. */
+export function packageTestCommand(pkg, ws) {
+  if (ws.manager === "pnpm") return `pnpm --filter ${pkg.name} test`;
+  if (ws.manager === "yarn") return `yarn workspace ${pkg.name} test`;
+  if (ws.manager === "bun") return `bun --filter ${pkg.name} test`;
+  return `npm test -w ${pkg.dir}`;
+}
+
 /** Whether a verify entry ran the checks of `pkg` (a package from findWorkspaces). */
 export function covers(entry, pkg, ws) {
   if (!entry.cwd) return true;

@@ -98,3 +98,42 @@ test("events come out in command order", () => {
   assert.deepEqual(analyzeShell("npm test && printf x > src/a.js").map((e) => e.type), ["verify", "edit"]);
   assert.deepEqual(analyzeShell("printf x > src/a.js && npm test").map((e) => e.type), ["edit", "verify"]);
 });
+
+test("package scripts run for one workspace keep the workspace flags as arguments", () => {
+  for (const [command, check, args] of [
+    ["npm test -w packages/api", "npm test", "-w packages/api"],
+    ["npm run test --workspace=api", "npm test", "--workspace=api"],
+    ["npm -w packages/api test", "npm test", "-w packages/api"],
+    ["npm --prefix packages/api run test", "npm test", "--prefix packages/api"],
+    ["pnpm --filter api test", "pnpm test", "--filter api"],
+    ["pnpm -F @shop/api run build", "pnpm build", "-F @shop/api"],
+    ["pnpm -r test", "pnpm test", "-r"],
+    ["pnpm -C packages/api lint", "pnpm lint", "-C packages/api"],
+    ["yarn workspace api test", "yarn test", "workspace api"],
+    ["yarn workspaces foreach -A run test", "yarn test", "workspaces foreach -A"],
+    ["bun --filter api test", "bun test", "--filter api"],
+  ]) {
+    assert.deepEqual(verifies(command)[0], { check, args, masked: false }, command);
+  }
+});
+
+test("monorepo task runners are checks", () => {
+  for (const [command, check] of [
+    ["npx turbo run test", "npx turbo run test"], ["turbo test --filter=api", "turbo test"], ["npx nx test api", "npx nx test"],
+    ["npx nx run-many -t test", "npx nx run-many"], ["npx lerna run test --scope api", "npx lerna run test"],
+  ]) {
+    assert.equal(verifies(command)[0]?.check, check, command);
+  }
+});
+
+test("package manager commands that run no check are not checks", () => {
+  for (const command of ["npm -w packages/api install", "pnpm --filter api add zod", "yarn workspace api add zod", "npm -v", "pnpm -r exec ls"]) {
+    assert.deepEqual(verifies(command), [], command);
+  }
+});
+
+test("a cd before a check in the same command is kept as the check's folder", () => {
+  assert.equal(analyzeShell("cd packages/api && npm test").find((e) => e.type === "verify").dir, "packages/api");
+  assert.equal(analyzeShell("Set-Location packages/api; npm test").find((e) => e.type === "verify").dir, "packages/api");
+  assert.equal(analyzeShell("npm test").find((e) => e.type === "verify").dir, undefined);
+});

@@ -4,8 +4,15 @@ export const SHELL_EDIT = "(shell command)";
 
 const QUOTED = /"(?:[^"\\]|\\.)*"|'[^']*'/g;
 const ENV_PREFIX = /^(?:[A-Za-z_][A-Za-z0-9_]*=\S*\s+)+/;
-const PACKAGE_SCRIPT = /^(npm|pnpm|yarn|bun)\s+(?:run\s+)?(test|build|lint|typecheck|check)(?=\s|$)/;
+const PACKAGE_MANAGERS = new Set(["npm", "pnpm", "yarn", "bun"]);
+const PACKAGE_SCRIPTS = new Set(["test", "build", "lint", "typecheck", "check"]);
+// Package manager flags that take a value as the next word: they pick the workspace or folder the script runs in.
+const VALUE_FLAGS = new Set(["-w", "--workspace", "--filter", "-F", "--prefix", "-C", "--dir", "--cwd"]);
+const CD = /^(?:cd|pushd|set-location)\s+(\S+)$/i;
 const CHECKS = [
+  /^(?:npx\s+)?turbo\s+(?:run\s+)?(?:test|build|lint|typecheck|check)(?=\s|$)/,
+  /^(?:npx\s+)?nx\s+(?:test|build|lint|typecheck|run-many)(?=\s|$)/,
+  /^(?:npx\s+)?lerna\s+run\s+(?:test|build|lint|typecheck|check)(?=\s|$)/,
   /^npx\s+(?:tsc|vitest|jest|eslint|playwright\s+test)(?=\s|$)/,
   /^(?:python3?\s+-m\s+)?pytest(?=\s|$)/,
   /^go\s+(?:test|build)(?=\s|$)/,
@@ -48,9 +55,27 @@ export function splitCommand(command) {
   return segments.filter((s) => s.text);
 }
 
+// `npm test`, `npm run test -w api`, `pnpm --filter api test`, `yarn workspace api test`: the flags that choose
+// where the script runs come before it, so they move into the arguments.
+function packageScript(text) {
+  const tokens = words(text);
+  if (!PACKAGE_MANAGERS.has(tokens[0])) return null;
+  let i = 1;
+  if (tokens[0] === "yarn" && tokens[1] === "workspace") i = 3;
+  if (tokens[0] === "yarn" && tokens[1] === "workspaces" && tokens[2] === "foreach") {
+    i = tokens.indexOf("run", 3);
+    if (i === -1) return null;
+  }
+  while (tokens[i]?.startsWith("-")) i += VALUE_FLAGS.has(tokens[i]) ? 2 : 1;
+  if (tokens[i] === "run") i++;
+  if (!PACKAGE_SCRIPTS.has(tokens[i])) return null;
+  const flags = tokens.slice(1, i).filter((t) => t !== "run");
+  return { check: `${tokens[0]} ${tokens[i]}`, rest: [...flags, ...tokens.slice(i + 1)].join(" ") };
+}
+
 function builtinCheck(text) {
-  const script = PACKAGE_SCRIPT.exec(text);
-  if (script) return { check: `${script[1]} ${script[2]}`, rest: text.slice(script[0].length) };
+  const script = packageScript(text);
+  if (script) return script;
   const match = CHECKS.map((re) => re.exec(text)).find(Boolean);
   return match ? { check: squash(match[0]).replace(/^\.\//, ""), rest: text.slice(match[0].length) } : null;
 }
@@ -103,10 +128,13 @@ function editTargets(segment) {
 export function analyzeShell(command, projectCommands = []) {
   const segments = splitCommand(command);
   const pipefail = segments.some((s) => PIPEFAIL.test(s.text));
+  let dir;
   return segments.flatMap((segment, index) => {
+    const cd = CD.exec(segment.text);
+    if (cd) dir = cd[1];
     const events = editTargets(segment.text).map((target) => ({ type: "edit", target }));
     const found = parseCheck(segment.text, projectCommands);
-    if (found) events.push({ type: "verify", ...found, masked: isMaskedAt(segments, index, pipefail) });
+    if (found) events.push({ type: "verify", ...found, masked: isMaskedAt(segments, index, pipefail), ...(dir && { dir }) });
     return events;
   });
 }

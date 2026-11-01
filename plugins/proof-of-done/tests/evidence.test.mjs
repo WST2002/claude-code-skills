@@ -90,3 +90,10 @@ test("unexpected payloads produce no entries", () => {
     assert.deepEqual(entriesFor(input, config, []), []);
   }
 });
+
+test("a check run after cd in the same command records the folder it ran in", () => {
+  const [entry] = entriesFor(payload({ tool_name: "Bash", tool_input: { command: "cd packages/api && npm test" } }), config, []);
+  assert.equal(entry.dir, "packages/api");
+  const [plain] = entriesFor(payload({ tool_name: "Bash", tool_input: { command: "npm test" } }), config, []);
+  assert.equal("dir" in plain, false);
+});

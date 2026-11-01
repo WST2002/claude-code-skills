@@ -26,8 +26,8 @@ function shellEntries(input, config, projectCommands, at) {
       const counts = event.target === SHELL_EDIT || isCodeFile(event.target, cwd, config.ignore);
       return counts ? [{ type: "edit", file: event.target, cwd, at }] : [];
     }
-    const { check, args, masked } = event;
-    const entry = { type: "verify", command, check, args, exitCode: exitCodeOf(input), masked, cwd, at };
+    const { check, args, masked, dir } = event;
+    const entry = { type: "verify", command, check, args, exitCode: exitCodeOf(input), masked, cwd, ...(dir && { dir }), at };
     return [ran === null ? entry : { ...entry, testsRun: ran }];
   });
 }

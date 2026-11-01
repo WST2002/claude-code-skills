@@ -28,6 +28,11 @@ found a bug Claude had missed.*
      `[no test files]` and Jest/Vitest `--passWithNoTests`) → blocked
    - a check failed before the last edit and has not run since → blocked until
      it runs again, so a passing lint cannot clear a failing test
+   - monorepo: a changed package has its own `test` script, but no passing run
+     after its last edit covered it (a root `npm test` that only runs another
+     workspace) → blocked, with the command for that package
+     (`npm test -w packages/api`, `pnpm --filter api test`,
+     `yarn workspace api test`)
    - a check failed and then passed with no edit in between → flagged as flaky;
      blocked until the report says the check is flaky
    - test changes that make checks pass without a fix → blocked, with file and
@@ -49,6 +54,15 @@ output. For other tools only the exit code counts. Test changes are read from
 `git diff` against the commit the session started from, so committing a weakened
 test does not hide it. Missing tests are found the same way, so both checks need a
 git repository.
+
+Monorepos are found from npm, yarn and bun `workspaces` and
+`pnpm-workspace.yaml`. A run covers a package when it ran inside the package
+folder (`cd packages/api && npm test` too), named it (`-w`, `--workspace`,
+`--filter`, `--prefix`, `yarn workspace`, turbo `--filter`, `nx test api`, lerna
+`--scope`), or ran every workspace (`--workspaces`, `-r`, turbo, `nx run-many`,
+`lerna run`). A plain root run covers what the root script runs. When the target
+cannot be worked out, the run counts for every package, so the gate never blocks
+on a guess.
 
 3. If verification is genuinely impossible, the agent can end with
    `Verification: skipped — <reason>` and say so honestly.
@@ -77,7 +91,8 @@ Create `.claude/proof-of-done.json` in your project:
   "verify": ["npm run lint", "npm test"],
   "ignore": ["generated/**", "*.snap"],
   "tamper": true,
-  "tests": "ask"
+  "tests": "ask",
+  "workspaces": true
 }
 ```
 
@@ -87,6 +102,8 @@ Create `.claude/proof-of-done.json` in your project:
 - `tests` decides what happens when code changes with no test: `"ask"` (default)
   asks you once, `"strict"` blocks until a test is added or the report gives a
   `No new tests:` reason, `"off"` never asks.
+- `workspaces: false` turns off the monorepo package check, so any passing
+  run after the last edit counts for every package.
 - `enabled: false` turns the gate off for this project.
 
 Auto-detection covers npm/pnpm/yarn/bun scripts (`typecheck`, `lint`, `test`,

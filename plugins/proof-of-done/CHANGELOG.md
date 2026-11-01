@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.0
+
+- Monorepos: each changed package that has its own `test` script needs a passing run after its last edit that covers it. A root `npm test` that only runs another workspace no longer clears a change in `packages/api`; the block names the package and the command for your package manager (`npm test -w packages/api`, `pnpm --filter api test`, `yarn workspace api test`, `bun --filter api test`).
+- Workspace-scoped runs are recognised: `npm -w`/`--workspace`/`--prefix`, `pnpm --filter`/`-F`/`-r`/`-C`, `yarn workspace`, `yarn workspaces foreach`, `bun --filter`, `cd <package> && npm test`, and turbo, nx and lerna runs.
+- `workspaces: false` in `.claude/proof-of-done.json` turns the package check off.
+
 ## 0.4.2
 
 - A check that failed before the last edit must run again: a different check passing (lint after a failing test) no longer clears it. The stop is blocked until that check runs again, or the report gives `Verification: skipped — <reason>`.

@@ -4,6 +4,7 @@ import { detectVerifyCommands } from "../lib/detect.mjs";
 import { pluginDataDir, readHookInput, warn } from "../lib/hook-io.mjs";
 import { appendEntry, ledgerPath, readLedger } from "../lib/ledger.mjs";
 import { sessionChecks } from "../lib/session-diff.mjs";
+import { findWorkspaces } from "../lib/workspaces.mjs";
 
 function main() {
   const input = readHookInput();
@@ -28,6 +29,7 @@ function main() {
     tampering,
     untested: askable ? untested : [],
     testsMode: config.tests,
+    workspaces: config.workspaces ? findWorkspaces(input.cwd) : null,
   });
   if (verdict.allow) return;
   if (verdict.askedAbout) appendEntry(ledger, { type: "tests-asked", files: verdict.askedAbout, cwd: input.cwd, at: new Date().toISOString() });

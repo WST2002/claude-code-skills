@@ -294,3 +294,38 @@ test("a failed test is not cleared by lint passing after a later edit, only by t
   record({ tool_name: "Bash", tool_input: { command: "npm test" } });
   assert.equal(stop().stdout, "");
 });
+
+function monorepoSetup(t, config) {
+  const { project, record, stop } = setup(t);
+  writeFiles(project, {
+    "package.json": { private: true, workspaces: ["packages/*"], scripts: { test: "npm test -w packages/web" } },
+    "packages/api/package.json": { name: "api", scripts: { test: "node --test" } },
+    "packages/web/package.json": { name: "web", scripts: { test: "node --test" } },
+    ...(config && { ".claude/proof-of-done.json": config }),
+  });
+  record({ tool_name: "Edit", tool_input: { file_path: path.join(project, "packages/api/src/order.js") } });
+  return { project, record, stop };
+}
+
+test("monorepo: a root test run that only covers another package is blocked, then the package's own run passes", (t) => {
+  const { record, stop } = monorepoSetup(t);
+  record({ tool_name: "Bash", tool_input: { command: "npm test" } });
+  const verdict = block(stop());
+  assert.equal(verdict.decision, "block");
+  assert.match(verdict.reason, /packages\/api/);
+  assert.match(verdict.reason, /`npm test -w packages\/api`/);
+  record({ tool_name: "Bash", tool_input: { command: "npm test -w packages/api" } });
+  assert.equal(stop().stdout, "");
+});
+
+test("monorepo: a run from inside the package folder counts", (t) => {
+  const { project, record, stop } = monorepoSetup(t);
+  record({ tool_name: "Bash", tool_input: { command: "npm test" }, cwd: path.join(project, "packages/api") });
+  assert.equal(stop().stdout, "");
+});
+
+test("monorepo: \"workspaces\": false in the config turns the package check off", (t) => {
+  const { record, stop } = monorepoSetup(t, { workspaces: false });
+  record({ tool_name: "Bash", tool_input: { command: "npm test" } });
+  assert.equal(stop().stdout, "");
+});

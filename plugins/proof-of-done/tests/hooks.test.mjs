@@ -329,3 +329,55 @@ test("monorepo: \"workspaces\": false in the config turns the package check off"
   record({ tool_name: "Bash", tool_input: { command: "npm test" } });
   assert.equal(stop().stdout, "");
 });
+
+// A git project whose test run writes a real lcov report with node's own coverage.
+function coverageProject(t, config) {
+  const ctx = gitProject(t);
+  writeFiles(ctx.project, {
+    "package.json": { scripts: { test: "node --test" } },
+    "src/price.js": "exports.total = (items) => items.reduce((s, i) => s + i, 0);\n",
+    "test/price.test.js": "const { test } = require('node:test');\nconst assert = require('node:assert');\nconst { total } = require('../src/price.js');\ntest('sum', () => assert.equal(total([1, 2]), 3));\n",
+    "coverage/.keep": "",
+    ...(config && { ".claude/proof-of-done.json": config }),
+  });
+  ctx.git("add", "-A");
+  ctx.git("commit", "-q", "-m", "price");
+  ctx.start();
+  const env = Object.fromEntries(Object.entries(process.env).filter(([name]) => name !== "NODE_TEST_CONTEXT"));
+  ctx.testWithCoverage = () => {
+    const run = spawnSync(process.execPath, ["--test", "--experimental-test-coverage", "--test-reporter=lcov", "--test-reporter-destination=coverage/lcov.info", "test/price.test.js"], { cwd: ctx.project, encoding: "utf8", env });
+    assert.equal(run.status, 0, run.stderr);
+    ctx.record({ tool_name: "Bash", tool_input: { command: "npm run test" }, tool_response: { stdout: "", stderr: "" } });
+  };
+  ctx.editPrice = () => {
+    writeFiles(ctx.project, {
+      "src/price.js": "exports.total = (items, coupon) => {\n  const sum = items.reduce((s, i) => s + i, 0);\n  if (coupon === 'FLAT50') {\n    return Math.max(0, sum - 50);\n  }\n  return sum;\n};\n",
+    });
+    ctx.record({ tool_name: "Edit", tool_input: { file_path: path.join(ctx.project, "src/price.js") } });
+  };
+  return ctx;
+}
+
+test("coverage: a changed branch the tests never ran is asked about once, with its lines", (t) => {
+  const { stop, testWithCoverage, editPrice } = coverageProject(t);
+  editPrice();
+  testWithCoverage();
+  const verdict = block(stop());
+  assert.equal(verdict.decision, "block");
+  assert.match(verdict.reason, /coverage\/lcov\.info/);
+  assert.match(verdict.reason, /src\/price\.js \(lines 4–5\)/);
+  assert.equal(stop().stdout, "", "asked once");
+});
+
+test("coverage: a report from before the last edit is not used, and \"coverage\": \"off\" turns the check off", (t) => {
+  const stale = coverageProject(t);
+  stale.testWithCoverage();
+  stale.editPrice();
+  stale.record({ tool_name: "Bash", tool_input: { command: "npm run test" }, tool_response: { stdout: "", stderr: "" } });
+  assert.equal(stale.stop().stdout, "");
+
+  const off = coverageProject(t, { coverage: "off" });
+  off.editPrice();
+  off.testWithCoverage();
+  assert.equal(off.stop().stdout, "");
+});

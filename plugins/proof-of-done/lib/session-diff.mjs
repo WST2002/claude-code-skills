@@ -3,8 +3,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { matchesGlob, nativePath } from "./classify.mjs";
 import { SHELL_EDIT } from "./shell.mjs";
+import { findUncovered, readCoverage } from "./coverage.mjs";
 import { findTampering } from "./tamper.mjs";
 import { findUntested } from "./untested.mjs";
+import { findWorkspaces } from "./workspaces.mjs";
 
 const MAX_NEW_FILE_BYTES = 256 * 1024;
 const MAX_NEW_FILES = 200;
@@ -59,23 +61,38 @@ function editedFiles(cwd, entries) {
   return new Set(edits.map((e) => path.relative(realRoot, realPath(path.resolve(e.cwd ?? cwd, nativePath(e.file)))).split(path.sep).join("/")));
 }
 
+// Changed lines that a coverage report written after the last edit shows never ran: { uncovered, reports, root }.
+function coverageCheck(cwd, entries, diff, ignore, edited) {
+  const root = git(cwd, "rev-parse", "--show-toplevel")?.trim();
+  const lastEdit = Date.parse(entries.findLast((e) => e.type === "edit")?.at ?? "");
+  if (!root || Number.isNaN(lastEdit)) return null;
+  const packages = findWorkspaces(cwd)?.packages.map((p) => path.join(root, p.dir)) ?? [];
+  const coverage = readCoverage(root, [...new Set([realPath(root), realPath(cwd), ...packages])], lastEdit);
+  if (!coverage.reports.length) return null;
+  return { uncovered: findUncovered({ diff, root: realPath(root), coverage, ignore, edited }), reports: coverage.reports, root: realPath(root) };
+}
+
 /**
- * The session's test changes that can make checks pass without a fix (`tampering`), and code changed with no test
- * change (`untested`). Both are [] when their check is off or the project is not a git repository.
+ * The session's test changes that can make checks pass without a fix (`tampering`), code changed with no test
+ * change (`untested`), and changed lines a fresh coverage report shows never ran (`coverage`, or null). Each is
+ * empty when its check is off or the project is not a git repository.
  */
 export function sessionChecks({ cwd, entries, config }) {
-  const none = { tampering: [], untested: [] };
+  const none = { tampering: [], untested: [], coverage: null };
   const tamper = config.tamper !== false;
   const tests = (config.tests ?? "ask") !== "off";
-  if ((!tamper && !tests) || !entries.some((e) => e.type === "edit")) return none;
+  const coverage = (config.coverage ?? "ask") !== "off";
+  if ((!tamper && !tests && !coverage) || !entries.some((e) => e.type === "edit")) return none;
   // SessionStart also fires on resume and compaction; the first baseline is where the session began.
   const baseline = entries.find((e) => e.type === "baseline")?.sha;
   const diff = sessionDiff(cwd, baseline);
   if (!diff) return none;
   const ignore = (file) => (config.ignore ?? []).some((glob) => matchesGlob(file, glob));
-  const edited = tests ? editedFiles(cwd, entries) : null;
+  const edited = tests || coverage ? editedFiles(cwd, entries) : null;
+  const wasEdited = (file) => !edited || edited.has(file);
   return {
     tampering: tamper ? findTampering(diff, ignore) : [],
-    untested: tests ? findUntested(diff, ignore, (file) => !edited || edited.has(file)) : [],
+    untested: tests ? findUntested(diff, ignore, wasEdited) : [],
+    coverage: coverage ? coverageCheck(cwd, entries, diff, ignore, wasEdited) : null,
   };
 }

@@ -49,3 +49,11 @@ test("ledgers older than 7 days are pruned", (t) => {
   assert.equal(fs.existsSync(oldFile), false);
   assert.equal(fs.existsSync(newFile), true);
 });
+
+test("asked-about entries for tests and for coverage are kept", (t) => {
+  const file = ledgerPath(tempDir(t), "s");
+  appendEntry(file, { type: "tests-asked", files: ["src/a.js"] });
+  appendEntry(file, { type: "coverage-asked", files: ["src/b.js"] });
+  appendEntry(file, { type: "coverage-asked", files: [1] });
+  assert.deepEqual(readLedger(file).map((e) => e.type), ["tests-asked", "coverage-asked"]);
+});

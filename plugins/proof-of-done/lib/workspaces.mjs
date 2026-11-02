@@ -35,6 +35,9 @@ function workspaceGlobs(dir) {
   } catch {
     return null;
   }
+  const unquote = (item) => item.trim().replace(/^['"]|['"]$/g, "");
+  const inline = /^packages\s*:\s*\[([^\]]*)\]/m.exec(yaml);
+  if (inline) return inline[1].split(",").map(unquote).filter(Boolean);
   const globs = [];
   let inPackages = false;
   for (const line of yaml.split(/\r?\n/)) {
@@ -106,7 +109,13 @@ function relativeToRoot(absolute, ws) {
   return rel.startsWith("..") || path.isAbsolute(rel) ? null : posix(rel);
 }
 
-const inPackage = (rel, ws) => ws.packages.find((p) => rel === p.dir || rel.startsWith(`${p.dir}/`)) ?? null;
+// Windows folder names ignore case. A nested package belongs to the innermost package folder.
+const sameCase = (text) => (process.platform === "win32" ? text.toLowerCase() : text);
+function inPackage(rel, ws) {
+  const target = sameCase(rel);
+  const holders = ws.packages.filter((p) => target === sameCase(p.dir) || target.startsWith(`${sameCase(p.dir)}/`));
+  return holders.sort((a, b) => b.dir.length - a.dir.length)[0] ?? null;
+}
 
 /** The package an edited file belongs to, or null for files outside every package. */
 export function packageOf(file, cwd, ws) {
@@ -114,10 +123,13 @@ export function packageOf(file, cwd, ws) {
   return rel === null ? null : inPackage(rel, ws);
 }
 
-// Packages a --filter / -w / --scope value names: a name, a folder or a glob of either. null when nothing matches.
+// Packages a --filter / -w / --scope value names: a name, a folder or a glob of either. null when nothing matches,
+// or when the value also pulls in dependencies or dependents (`api...`, `...^api`) or excludes (`!web`), which
+// needs the dependency graph to answer.
 function matchTarget(value, ws) {
-  const target = trimFolder(value.replace(/^\.\.\.|\.\.\.$/g, ""));
-  if (!target || /[[\]{}^]/.test(target)) return null;
+  if (/\.\.\.|[[\]{}^!]/.test(value)) return null;
+  const target = trimFolder(value);
+  if (!target) return null;
   const re = globToRegExp(target);
   const found = ws.packages.filter((p) => p.name === target || p.dir === target || re.test(p.name) || re.test(p.dir));
   return found.length ? found.map((p) => p.dir) : null;
@@ -130,14 +142,19 @@ const flagValues = (tokens, flags) =>
     return [inline ?? tokens[i + 1]].filter((v) => v !== undefined);
   });
 
-/**
- * What a check run covers: "all", a Set of package folders, or "plain" for a package script run at the root with no
- * workspace flags (its root script decides). Unknown targets count as "all" so a run is never wrongly rejected.
- */
-function scopeOfCommand(check, args, baseRel, ws) {
-  // Words after `--` go to the test runner, and pnpm's -w means the workspace root.
-  const all = args.split(/\s+/).filter(Boolean);
-  const tokens = (all.includes("--") ? all.slice(0, all.indexOf("--")) : all).filter((t) => !(check.startsWith("pnpm ") && t === "-w"));
+const NONE = new Set();
+// Checks that run tests (as opposed to lint, typecheck or build), when they are not package scripts or task runners.
+const TEST_CHECK = /\b(?:jest|vitest|playwright test|pytest|go test|cargo test|dotnet test|mvnw? (?:test|verify)|gradlew? (?:test|check)|make (?:test|check))\b/;
+// A script that the parser cannot read but that looks like it runs tests (`node --test`, `mocha`, `ava`…).
+const TEST_LIKE_SCRIPT = /\b(?:test|tests|jest|vitest|mocha|ava|tap|playwright|cypress|uvu)\b/i;
+
+const union = (scopes) => {
+  if (scopes.includes("all")) return "all";
+  return new Set(scopes.flatMap((s) => [...s]));
+};
+
+// Where a run's words point: package folders, "all", or null when the run names no packages.
+function namedPackages(check, tokens, baseRel, ws) {
   const folders = flagValues(tokens, FOLDER_FLAGS).map((v) => inPackage(posix(path.posix.join(baseRel, trimFolder(v))), ws));
   if (folders.length) return folders.every(Boolean) ? new Set(folders.map((p) => p.dir)) : "all";
   const targets = flagValues(tokens, TARGET_FLAGS);
@@ -152,36 +169,50 @@ function scopeOfCommand(check, args, baseRel, ws) {
     return dirs.every(Boolean) ? new Set(dirs.flat()) : "all";
   }
   if (runner || tokens.some((t) => ALL_WORKSPACES.has(t)) || (tokens[0] === "workspaces" && tokens[1] === "foreach")) return "all";
-  return PACKAGE_MANAGER.test(check) ? "plain" : "all";
+  return null;
 }
 
-// A package script run at the root covers what its root script runs; a plain test runner there covers everything.
-// Only runs of the same script count: a `lint` step inside the root `test` script does not run any package's tests.
-function scopeOfRootScript(check, ws, depth) {
-  const name = PACKAGE_MANAGER.exec(check)[2];
+// A root package script covers the packages whose tests its steps run; a step that is not a test run covers none.
+function scopeOfRootScript(name, ws, depth) {
   const script = ws.scripts[name];
-  if (typeof script !== "string" || depth >= MAX_SCRIPT_DEPTH) return "all";
-  const sameScript = (e) => {
-    const pm = PACKAGE_MANAGER.exec(e.check);
-    return !pm || pm[2] === name;
-  };
-  const runs = analyzeShell(script).filter((e) => e.type === "verify" && sameScript(e));
-  if (!runs.length) return "all";
-  const dirs = new Set();
-  for (const event of runs) {
-    const scope = scopeOfRun(event.check, event.args, event.dir ?? "", ws, depth + 1);
-    if (scope === "all") return "all";
-    for (const d of scope) dirs.add(d);
-  }
-  return dirs;
+  if (depth >= MAX_SCRIPT_DEPTH) return "all";
+  if (typeof script !== "string") return name === "test" ? "all" : NONE;
+  const runs = analyzeShell(script).filter((e) => e.type === "verify");
+  if (!runs.length) return TEST_LIKE_SCRIPT.test(script) ? "all" : NONE;
+  return union(runs.map((event) => {
+    const rel = relativeToRoot(path.resolve(ws.root, nativePath(event.dir ?? "")), ws);
+    return rel === null ? "all" : scopeOfRun(event, rel, ws, depth + 1);
+  }));
 }
 
-function scopeOfRun(check, args, baseRel, ws, depth = 0) {
+/**
+ * The packages whose tests a run covers: "all" or a Set of package folders. Workspace flags win over the folder the
+ * run started in. When the target cannot be worked out the run counts for every package, so the gate never blocks on
+ * a guess; a run that is not a test run (lint, typecheck, build) covers no package.
+ */
+function scopeOfRun(run, baseRel, ws, depth = 0) {
+  if (run.runner) return "all";
+  const check = run.check ?? run.command ?? "";
+  // Words after `--` go to the test runner, and pnpm's -w means the workspace root.
+  const words = (run.args ?? "").split(/\s+/).filter(Boolean);
+  const before = words.includes("--") ? words.slice(0, words.indexOf("--")) : words;
+  const pnpmRoot = check.startsWith("pnpm ") && before.includes("-w");
+  const tokens = pnpmRoot ? before.filter((t) => t !== "-w") : before;
   const own = inPackage(baseRel, ws);
-  if (own) return new Set([own.dir]);
-  if (baseRel !== "") return "all";
-  const scope = scopeOfCommand(check, args ?? "", baseRel, ws);
-  return scope === "plain" ? scopeOfRootScript(check, ws, depth) : scope;
+  const script = PACKAGE_MANAGER.exec(check)?.[2];
+  if (script) {
+    const named = namedPackages(check, tokens, baseRel, ws);
+    if (named) return script === "test" ? named : NONE;
+    if (pnpmRoot || baseRel === "") return scopeOfRootScript(script, ws, depth);
+    if (own) return script === "test" ? new Set([own.dir]) : NONE;
+    return "all";
+  }
+  if (TASK_RUNNER.test(check)) {
+    const isTest = /\btest$/.test(check) || (/run-many$/.test(check) && /(?:^|[\s=,])test(?:$|[\s,])/.test(tokens.join(" ")));
+    return isTest ? namedPackages(check, tokens, baseRel, ws) ?? "all" : NONE;
+  }
+  if (!TEST_CHECK.test(check)) return NONE;
+  return own ? new Set([own.dir]) : "all";
 }
 
 const NPM_PLACEHOLDER_TEST = /no test specified/;
@@ -214,8 +245,8 @@ export function packageTestCommand(pkg, ws) {
 /** Whether a verify entry ran the checks of `pkg` (a package from findWorkspaces). */
 export function covers(entry, pkg, ws) {
   if (!entry.cwd) return true;
-  const baseRel = relativeToRoot(path.resolve(nativePath(entry.cwd), entry.dir ?? ""), ws);
+  const baseRel = relativeToRoot(path.resolve(nativePath(entry.cwd), nativePath(entry.dir ?? "")), ws);
   if (baseRel === null) return true;
-  const scope = scopeOfRun(entry.check ?? entry.command, entry.args, baseRel, ws);
+  const scope = scopeOfRun(entry, baseRel, ws);
   return scope === "all" || scope.has(pkg.dir);
 }

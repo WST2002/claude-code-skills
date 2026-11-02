@@ -149,3 +149,65 @@ test("only the folders the workspace globs point at are searched", (t) => {
   const { root } = monorepo(t, undefined, { "data/a/b/package.json": pkg("not-a-workspace") });
   assert.deepEqual(findWorkspaces(root).packages.map((p) => p.dir), ["packages/api", "packages/web"]);
 });
+
+test("a cd inside a root script is resolved, so ../web means packages/web", (t) => {
+  const { root, ws } = monorepo(t, { test: "cd packages/api && npm test && cd ../web && npm test" });
+  assert.deepEqual(covered(ws, run(root, "npm test", "npm test")), ["api", "web"]);
+});
+
+test("workspace flags win over the folder the run started in", (t) => {
+  const { root, ws } = monorepo(t);
+  assert.deepEqual(covered(ws, run(path.join(root, "packages/api"), "pnpm --filter web test", "pnpm test", "--filter web")), ["web"]);
+  const pnpm = monorepo(t, { test: "pnpm -r test" }, { "pnpm-workspace.yaml": "packages:\n  - 'packages/*'\n" });
+  assert.deepEqual(covered(pnpm.ws, run(pnpm.root, "cd packages/api && pnpm -w test", "pnpm test", "-w", { dir: "packages/api" })), ["api", "web"]);
+});
+
+test("a nested package belongs to the innermost package folder", (t) => {
+  const root = tempDir(t);
+  writeFiles(root, {
+    "package.json": { workspaces: ["packages/*", "packages/*/examples/*"] },
+    "packages/ui/package.json": pkg("ui"),
+    "packages/ui/examples/demo/package.json": pkg("demo"),
+  });
+  const ws = findWorkspaces(root);
+  assert.equal(packageOf(path.join(root, "packages/ui/examples/demo/src/x.js"), root, ws).name, "demo");
+  assert.deepEqual(covered(ws, run(root, "npm test -w packages/ui", "npm test", "-w packages/ui")), ["ui"]);
+});
+
+test("dependency selectors (api..., ...api, api^...) count for every package", (t) => {
+  const { root, ws } = monorepo(t);
+  for (const filter of ["api...", "...api", "api^...", "...^api"]) {
+    assert.deepEqual(covered(ws, run(root, `pnpm --filter ${filter} test`, "pnpm test", `--filter ${filter}`)), ["api", "web"], filter);
+  }
+});
+
+test("bun's own test runner covers every package", (t) => {
+  const { root, ws } = monorepo(t, { test: "bun --filter api test" });
+  assert.deepEqual(covered(ws, run(root, "bun test", "bun test", "", { runner: true })), ["api", "web"]);
+});
+
+test("a Git Bash absolute cd is read as a Windows path", { skip: process.platform !== "win32" }, (t) => {
+  const { root, ws } = monorepo(t);
+  const gitBash = path.join(root, "packages/web").replace(/^([A-Za-z]):/, (_, d) => `/${d.toLowerCase()}`).split(path.sep).join("/");
+  assert.deepEqual(covered(ws, run(root, `cd ${gitBash} && npm test`, "npm test", "", { dir: gitBash })), ["web"]);
+});
+
+test("pnpm-workspace.yaml with an inline list", (t) => {
+  const root = tempDir(t);
+  writeFiles(root, { "package.json": {}, "pnpm-workspace.yaml": "packages: ['packages/*', \"tools/*\"]\n", "packages/a/package.json": pkg("a"), "tools/b/package.json": pkg("b") });
+  assert.deepEqual(findWorkspaces(root).packages.map((p) => p.dir), ["packages/a", "tools/b"]);
+});
+
+test("only test runs cover a package: a root script of another name covers the tests it runs, lint covers none", (t) => {
+  const { root, ws } = monorepo(t, { check: "npm test -w packages/api", lint: "eslint .", test: "node --test" });
+  assert.deepEqual(covered(ws, run(root, "npm run check", "npm check")), ["api"]);
+  assert.deepEqual(covered(ws, run(root, "npm run lint", "npm lint")), []);
+  assert.deepEqual(covered(ws, run(root, "npx tsc --noEmit", "npx tsc")), []);
+  assert.deepEqual(covered(ws, run(root, "npm run lint -w packages/api", "npm lint", "-w packages/api")), []);
+  assert.deepEqual(covered(ws, run(root, "npx vitest run", "npx vitest", "run")), ["api", "web"]);
+});
+
+test("folder names are compared without case on Windows", { skip: process.platform !== "win32" }, (t) => {
+  const { root, ws } = monorepo(t);
+  assert.equal(packageOf(path.join(root, "PACKAGES/WEB/src/x.js"), root, ws).name, "web");
+});

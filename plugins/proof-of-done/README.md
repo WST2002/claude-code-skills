@@ -47,6 +47,11 @@ found a bug Claude had missed.*
      add a test. Say yes and it writes and runs one; say no and it notes
      `No new tests: <reason>` in its report. It never asks twice about the same
      files. Small edits, styles, markup, config, docs and scripts are left alone.
+   - your tests wrote a coverage report after the last edit, and it shows changed
+     lines that never ran in any test → Claude asks you once whether to add tests
+     that run them (or, in strict mode, keeps blocking until they run or the
+     report explains on a line starting `Uncovered lines:`). It names each file
+     and the lines, like `src/price.js (lines 4–5)`
    - every check's latest run passed → allowed
 
 Test summaries are read from node --test, Jest, Vitest, pytest, Cargo and Mocha
@@ -98,6 +103,7 @@ Create `.claude/proof-of-done.json` in your project:
   "ignore": ["generated/**", "*.snap"],
   "tamper": true,
   "tests": "ask",
+  "coverage": "ask",
   "workspaces": true
 }
 ```
@@ -108,6 +114,13 @@ Create `.claude/proof-of-done.json` in your project:
 - `tests` decides what happens when code changes with no test: `"ask"` (default)
   asks you once, `"strict"` blocks until a test is added or the report gives a
   `No new tests:` reason, `"off"` never asks.
+- `coverage` decides what happens when a fresh coverage report shows changed
+  lines that never ran: `"ask"` (default) asks you once per file, `"strict"`
+  blocks until they run or the report gives an `Uncovered lines:` reason,
+  `"off"` never checks. The plugin never runs coverage itself: it reads
+  `coverage/lcov.info` (Jest, Vitest, c8, nyc, node), `coverage/coverage-final.json`
+  (Istanbul) or `coverage.xml` (coverage.py, pytest-cov) when your test run wrote
+  one after the last edit.
 - `workspaces: false` turns off the monorepo package check, so any passing
   run after the last edit counts for every package.
 - `enabled: false` turns the gate off for this project.

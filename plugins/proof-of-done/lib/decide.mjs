@@ -1,11 +1,13 @@
 import path from "node:path";
 import { tamperReason } from "./tamper.mjs";
+import { uncoveredReason } from "./coverage.mjs";
 import { untestedReason } from "./untested.mjs";
 import { packageTestCommand, uncoveredPackages } from "./workspaces.mjs";
 
 const SKIP_LINE = /Verification:\s*skipped\s*[—–-]+\s*(.+)/i;
 const TEST_CHANGES_LINE = /^\s*Test changes:\s*(.+)$/im;
 const NO_NEW_TESTS_LINE = /^\s*No new tests:\s*(.+)$/im;
+const UNCOVERED_LINE = /^\s*Uncovered lines:\s*(.+)$/im;
 const FLAKY_MENTION = /\bflak(?:y|e[sd]?|iness)\b/i;
 const MIN_SKIP_REASON = 10;
 const MAX_FILES_LISTED = 5;
@@ -111,23 +113,39 @@ function untestedProblem(entries, untested, testsMode, lastMessage) {
   return files.length ? { reason: untestedReason(files, testsMode), files: files.map((f) => f.file) } : null;
 }
 
+// Changed lines that a fresh coverage report shows never ran: asked about once per file, like missing tests.
+function uncoveredProblem(entries, coverage, lastMessage) {
+  if (!coverage || coverage.mode === "off" || !coverage.uncovered.length || explained(UNCOVERED_LINE, lastMessage)) return null;
+  const asked = new Set(entries.filter((e) => e.type === "coverage-asked").flatMap((e) => e.files));
+  const files = coverage.mode === "strict" ? coverage.uncovered : coverage.uncovered.filter((u) => !asked.has(u.file));
+  return files.length ? { reason: uncoveredReason(files, coverage.reports, coverage.root, coverage.mode), files: files.map((u) => u.file) } : null;
+}
+
 /**
  * `tampering`: test changes from findTampering that can make checks pass without a fix.
  * `untested`: code changed with no test change, from findUntested; `testsMode` is "ask", "strict" or "off".
  * `workspaces`: the monorepo from findWorkspaces, or null; then each changed package's tests must have run.
- * A block that asks the user about untested files returns them as `askedAbout`, so they are not asked about again.
+ * `coverage`: { uncovered, reports, root, mode } from a fresh coverage report, or null.
+ * A block that asks the user about untested files returns them as `askedAbout`, and about uncovered lines as
+ * `askedCoverage`, so they are not asked about again.
  */
-export function decide({ entries, lastMessage = "", stopHookActive = false, verifyCommands = [], tampering = [], untested = [], testsMode = "ask", workspaces = null }) {
+export function decide({ entries, lastMessage = "", stopHookActive = false, verifyCommands = [], tampering = [], untested = [], testsMode = "ask", workspaces = null, coverage = null }) {
   if (stopHookActive) return { allow: true };
   const lastEdit = entries.findLastIndex((e) => e.type === "edit");
   if (lastEdit === -1) return { allow: true };
   const missingTests = untestedProblem(entries, untested, testsMode, lastMessage);
+  const verification = verificationProblem(entries, lastEdit, lastMessage, verifyCommands, workspaces);
+  // Uncovered lines only matter once the tests ran and passed after the last edit.
+  const uncovered = verification ? null : uncoveredProblem(entries, coverage, lastMessage);
   const problems = [
-    verificationProblem(entries, lastEdit, lastMessage, verifyCommands, workspaces),
+    verification,
     tampering.length && !explained(TEST_CHANGES_LINE, lastMessage) ? tamperReason(tampering) : null,
     missingTests?.reason,
+    uncovered?.reason,
   ].filter(Boolean);
   if (!problems.length) return { allow: true };
   const verdict = { allow: false, reason: problems.join("\n\n") };
-  return missingTests && testsMode === "ask" ? { ...verdict, askedAbout: missingTests.files } : verdict;
+  if (missingTests && testsMode === "ask") verdict.askedAbout = missingTests.files;
+  if (uncovered && coverage.mode === "ask") verdict.askedCoverage = uncovered.files;
+  return verdict;
 }

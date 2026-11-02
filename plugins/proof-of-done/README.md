@@ -48,10 +48,15 @@ found a bug Claude had missed.*
      `No new tests: <reason>` in its report. It never asks twice about the same
      files. Small edits, styles, markup, config, docs and scripts are left alone.
    - your tests wrote a coverage report after the last edit, and it shows changed
-     lines that never ran in any test → Claude asks you once whether to add tests
-     that run them (or, in strict mode, keeps blocking until they run or the
-     report explains on a line starting `Uncovered lines:`). It names each file
-     and the lines, like `src/price.js (lines 4–5)`
+     lines that the latest coverage run did not run → Claude asks you once
+     whether to add tests that run them (or, in strict mode, keeps blocking until
+     they run or the report explains on a line starting `Uncovered lines:`). It
+     names each file and the lines, like `src/price.js (lines 4–5)`. If that run
+     covered only part of the tests, Claude is told to run the full suite with
+     coverage first. Only files the session edited are judged, and a file changed
+     after the report was written is not judged by it. One known limit: a
+     coverage run that started before the last edit and finished after it can
+     still be read, which costs one extra test run
    - every check's latest run passed → allowed
 
 Test summaries are read from node --test, Jest, Vitest, pytest, Cargo and Mocha

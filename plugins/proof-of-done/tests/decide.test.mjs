@@ -312,7 +312,7 @@ test("coverage: changed lines that never ran block once in ask mode, naming the 
   assert.equal(verdict.allow, false);
   assert.match(verdict.reason, /coverage\/lcov\.info/);
   assert.match(verdict.reason, /src\/order\.js \(lines 11–12, 14\)/);
-  assert.match(verdict.reason, /Ask the user once/);
+  assert.match(verdict.reason, /ask the user once/);
   assert.deepEqual(verdict.askedCoverage, ["src/order.js"]);
   const again = decide({ entries: [...passed, { type: "coverage-asked", files: ["src/order.js"] }], coverage: covered([{ file: "src/order.js", lines: [11] }]) });
   assert.deepEqual(again, { allow: true });
@@ -328,5 +328,5 @@ test("coverage: strict mode keeps blocking until the report explains, off never 
 
 test("coverage: not raised while the tests themselves still fail or never ran", () => {
   const verdict = decide({ entries: [edit("/p/src/order.js"), run("npm test", 1)], coverage: covered([{ file: "src/order.js", lines: [11] }]) });
-  assert.doesNotMatch(verdict.reason, /never ran in any test/);
+  assert.doesNotMatch(verdict.reason, /did not run lines you changed/);
 });

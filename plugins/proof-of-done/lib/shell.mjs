@@ -8,9 +8,9 @@ const PACKAGE_MANAGERS = new Set(["npm", "pnpm", "yarn", "bun"]);
 const PACKAGE_SCRIPTS = new Set(["test", "build", "lint", "typecheck", "check"]);
 // Package manager flags that take a value as the next word: they pick the workspace or folder the script runs in.
 const VALUE_FLAGS = new Set(["-w", "--workspace", "--filter", "-F", "--prefix", "-C", "--dir", "--cwd"]);
-const CD = /^(?:cd|pushd|set-location)\s+(\S+)$/i;
+const CD = /^(?:cd|pushd|set-location|push-location)\s+(\S+)$/i;
 const ABSOLUTE = /^(?:[A-Za-z]:)?[\\/]|^~/;
-const POPD = /^popd$/i;
+const POPD = /^(?:popd|pop-location)$/i;
 // A folder the command moved to that cannot be worked out (cd - with no earlier cd, popd with nothing pushed).
 export const UNKNOWN_DIR = "<unknown>";
 const CHECKS = [
@@ -145,7 +145,7 @@ export function analyzeShell(command, projectCommands = []) {
     if (POPD.test(segment.text)) dir = stack.length ? stack.pop() : UNKNOWN_DIR;
     else if (cd?.[1] === "-") [dir, previous] = moved ? [previous, dir] : [UNKNOWN_DIR, dir];
     else if (cd) {
-      if (/^pushd/i.test(segment.text)) stack.push(dir);
+      if (/^push/i.test(segment.text)) stack.push(dir);
       previous = dir;
       moved = true;
       dir = dir && !ABSOLUTE.test(cd[1]) ? `${dir}/${cd[1]}` : cd[1];

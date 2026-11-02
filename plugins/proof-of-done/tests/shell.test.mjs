@@ -163,3 +163,8 @@ test("bun test runs bun's own test runner; bun run test runs the script", () => 
   assert.equal(analyzeShell("bun run test").find((e) => e.type === "verify").runner, undefined);
   assert.equal(analyzeShell("bun --filter api test").find((e) => e.type === "verify").runner, undefined);
 });
+
+test("PowerShell Push-Location and Pop-Location move the folder like pushd and popd", () => {
+  const dirs = (command) => analyzeShell(command).filter((e) => e.type === "verify").map((e) => e.dir);
+  assert.deepEqual(dirs("Push-Location packages/web && npm test && Pop-Location && npm test"), ["packages/web", undefined]);
+});

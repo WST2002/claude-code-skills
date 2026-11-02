@@ -56,13 +56,16 @@ test does not hide it. Missing tests are found the same way, so both checks need
 git repository.
 
 Monorepos are found from npm, yarn and bun `workspaces` and
-`pnpm-workspace.yaml`. A run covers a package when it ran inside the package
-folder (`cd packages/api && npm test` too), named it (`-w`, `--workspace`,
-`--filter`, `--prefix`, `yarn workspace`, turbo `--filter`, `nx test api`, lerna
-`--scope`), or ran every workspace (`--workspaces`, `-r`, turbo, `nx run-many`,
-`lerna run`). A plain root run covers what the root script runs. When the target
-cannot be worked out, the run counts for every package, so the gate never blocks
-on a guess.
+`pnpm-workspace.yaml`. A test run covers a package when it ran inside the
+package folder (`cd packages/api && npm test` too), named it (`-w`,
+`--workspace`, `--filter`, `--prefix`, `yarn workspace`, turbo `--filter`,
+`nx test api`, lerna `--scope`), or ran every workspace (`--workspaces`, `-r`,
+turbo, `nx run-many`, `lerna run`, `bun test`). A plain root run covers what the
+tests in the root script cover. Lint, typecheck and build runs do not count as
+running a package's tests. When the target cannot be worked out (dependency
+filters like `api...`, unreadable scripts, a folder the command moved to that
+cannot be known), the run counts for every package, so the gate never blocks on
+a guess.
 
 3. If verification is genuinely impossible, the agent can end with
    `Verification: skipped — <reason>` and say so honestly.

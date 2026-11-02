@@ -81,3 +81,8 @@ test("ask mode tells the agent to ask the user once; strict mode asks for tests"
   assert.match(strict, /Add or update tests that cover this change and run them/);
   assert.doesNotMatch(strict, /Ask the user/);
 });
+
+test("coverage output written by a test run is not code that needs a test", (t) => {
+  const report = Array.from({ length: 30 }, (_, i) => `DA:${i + 1},1`).join("\n");
+  assert.deepEqual(findUntested(diffOf(t, start, { "coverage/lcov.info": report, ".nyc_output/out.json": "{}", "lcov.info": report })), []);
+});

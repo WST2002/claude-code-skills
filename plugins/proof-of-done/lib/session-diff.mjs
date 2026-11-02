@@ -18,14 +18,17 @@ function git(cwd, ...args) {
 
 export const headCommit = (cwd) => git(cwd, "rev-parse", "HEAD")?.trim() || null;
 
-// New, untracked files are not in `git diff`, so they are written as additions in the same format.
+// New, untracked files are not in `git diff`, so they are written as additions in the same format. They are listed
+// from the repository root, so their paths match `git diff` and files outside the current folder are included.
 function untrackedAsDiff(cwd) {
-  const files = (git(cwd, "ls-files", "--others", "--exclude-standard", "-z") ?? "").split("\0").filter(Boolean).slice(0, MAX_NEW_FILES);
+  const root = git(cwd, "rev-parse", "--show-toplevel")?.trim();
+  if (!root) return "";
+  const files = (git(root, "ls-files", "--others", "--exclude-standard", "-z") ?? "").split("\0").filter(Boolean).slice(0, MAX_NEW_FILES);
   return files.flatMap((file) => {
     let text;
     try {
-      if (fs.statSync(path.join(cwd, file)).size > MAX_NEW_FILE_BYTES) return [];
-      text = fs.readFileSync(path.join(cwd, file), "utf8");
+      if (fs.statSync(path.join(root, file)).size > MAX_NEW_FILE_BYTES) return [];
+      text = fs.readFileSync(path.join(root, file), "utf8");
     } catch {
       return [];
     }
@@ -51,9 +54,10 @@ function realPath(file) {
   }
 }
 
-// Files the session edited, relative to the repository root, or null when a shell command changed files it did not name.
-function editedFiles(cwd, entries) {
-  const edits = entries.filter((e) => e.type === "edit");
+// Files the session edited, relative to the repository root, or null when a shell command changed files it did not
+// name. `named` keeps only the files the session named, ignoring such commands.
+function editedFiles(cwd, entries, named = false) {
+  const edits = entries.filter((e) => e.type === "edit" && !(named && e.file === SHELL_EDIT));
   if (edits.some((e) => e.file === SHELL_EDIT)) return null;
   const root = git(cwd, "rev-parse", "--show-toplevel")?.trim();
   if (!root) return null;
@@ -62,14 +66,17 @@ function editedFiles(cwd, entries) {
 }
 
 // Changed lines that a coverage report written after the last edit shows never ran: { uncovered, reports, root }.
-function coverageCheck(cwd, entries, diff, ignore, edited) {
+// Only files the session itself edited are judged: a merge or a stash pop brings in code it did not write.
+function coverageCheck(cwd, entries, diff, ignore) {
   const root = git(cwd, "rev-parse", "--show-toplevel")?.trim();
   const lastEdit = Date.parse(entries.findLast((e) => e.type === "edit")?.at ?? "");
   if (!root || Number.isNaN(lastEdit)) return null;
-  const packages = findWorkspaces(cwd)?.packages.map((p) => path.join(root, p.dir)) ?? [];
+  const edited = editedFiles(cwd, entries, true) ?? new Set();
+  const ws = findWorkspaces(cwd);
+  const packages = ws?.packages.map((p) => path.join(ws.root, p.dir)) ?? [];
   const coverage = readCoverage(root, [...new Set([realPath(root), realPath(cwd), ...packages])], lastEdit);
   if (!coverage.reports.length) return null;
-  return { uncovered: findUncovered({ diff, root: realPath(root), coverage, ignore, edited }), reports: coverage.reports, root: realPath(root) };
+  return { uncovered: findUncovered({ diff, root: realPath(root), coverage, ignore, edited: (file) => edited.has(file) }), reports: coverage.reports, root: realPath(root) };
 }
 
 /**
@@ -88,11 +95,11 @@ export function sessionChecks({ cwd, entries, config }) {
   const diff = sessionDiff(cwd, baseline);
   if (!diff) return none;
   const ignore = (file) => (config.ignore ?? []).some((glob) => matchesGlob(file, glob));
-  const edited = tests || coverage ? editedFiles(cwd, entries) : null;
+  const edited = tests ? editedFiles(cwd, entries) : null;
   const wasEdited = (file) => !edited || edited.has(file);
   return {
     tampering: tamper ? findTampering(diff, ignore) : [],
     untested: tests ? findUntested(diff, ignore, wasEdited) : [],
-    coverage: coverage ? coverageCheck(cwd, entries, diff, ignore, wasEdited) : null,
+    coverage: coverage ? coverageCheck(cwd, entries, diff, ignore) : null,
   };
 }

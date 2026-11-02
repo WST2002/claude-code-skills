@@ -9,6 +9,7 @@ const PACKAGE_SCRIPTS = new Set(["test", "build", "lint", "typecheck", "check"])
 // Package manager flags that take a value as the next word: they pick the workspace or folder the script runs in.
 const VALUE_FLAGS = new Set(["-w", "--workspace", "--filter", "-F", "--prefix", "-C", "--dir", "--cwd"]);
 const CD = /^(?:cd|pushd|set-location)\s+(\S+)$/i;
+const ABSOLUTE = /^(?:[A-Za-z]:)?[\\/]|^~/;
 const CHECKS = [
   /^(?:npx\s+)?turbo\s+(?:run\s+)?(?:test|build|lint|typecheck|check)(?=\s|$)/,
   /^(?:npx\s+)?nx\s+(?:test|build|lint|typecheck|run-many)(?=\s|$)/,
@@ -66,7 +67,8 @@ function packageScript(text) {
     i = tokens.indexOf("run", 3);
     if (i === -1) return null;
   }
-  while (tokens[i]?.startsWith("-")) i += VALUE_FLAGS.has(tokens[i]) ? 2 : 1;
+  // pnpm's -w means "the workspace root" and takes no value.
+  while (tokens[i]?.startsWith("-")) i += VALUE_FLAGS.has(tokens[i]) && !(tokens[0] === "pnpm" && tokens[i] === "-w") ? 2 : 1;
   if (tokens[i] === "run") i++;
   if (!PACKAGE_SCRIPTS.has(tokens[i])) return null;
   const flags = tokens.slice(1, i).filter((t) => t !== "run");
@@ -131,7 +133,7 @@ export function analyzeShell(command, projectCommands = []) {
   let dir;
   return segments.flatMap((segment, index) => {
     const cd = CD.exec(segment.text);
-    if (cd) dir = cd[1];
+    if (cd) dir = dir && !ABSOLUTE.test(cd[1]) ? `${dir}/${cd[1]}` : cd[1];
     const events = editTargets(segment.text).map((target) => ({ type: "edit", target }));
     const found = parseCheck(segment.text, projectCommands);
     if (found) events.push({ type: "verify", ...found, masked: isMaskedAt(segments, index, pipefail), ...(dir && { dir }) });

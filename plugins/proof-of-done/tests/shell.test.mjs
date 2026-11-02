@@ -137,3 +137,12 @@ test("a cd before a check in the same command is kept as the check's folder", ()
   assert.equal(analyzeShell("Set-Location packages/api; npm test").find((e) => e.type === "verify").dir, "packages/api");
   assert.equal(analyzeShell("npm test").find((e) => e.type === "verify").dir, undefined);
 });
+
+test("pnpm -w is the workspace root, not a flag that takes a value", () => {
+  assert.deepEqual(verifies("pnpm -w test")[0], { check: "pnpm test", args: "-w", masked: false });
+});
+
+test("cd steps add up, and an absolute cd replaces the folder", () => {
+  assert.equal(analyzeShell("cd packages && cd api && npm test").find((e) => e.type === "verify").dir, "packages/api");
+  assert.equal(analyzeShell("cd packages/api && cd /tmp/x && npm test").find((e) => e.type === "verify").dir, "/tmp/x");
+});

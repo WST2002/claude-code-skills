@@ -10,6 +10,9 @@ const PACKAGE_SCRIPTS = new Set(["test", "build", "lint", "typecheck", "check"])
 const VALUE_FLAGS = new Set(["-w", "--workspace", "--filter", "-F", "--prefix", "-C", "--dir", "--cwd"]);
 const CD = /^(?:cd|pushd|set-location)\s+(\S+)$/i;
 const ABSOLUTE = /^(?:[A-Za-z]:)?[\\/]|^~/;
+const POPD = /^popd$/i;
+// A folder the command moved to that cannot be worked out (cd - with no earlier cd, popd with nothing pushed).
+export const UNKNOWN_DIR = "<unknown>";
 const CHECKS = [
   /^(?:npx\s+)?turbo\s+(?:run\s+)?(?:test|build|lint|typecheck|check)(?=\s|$)/,
   /^(?:npx\s+)?nx\s+(?:test|build|lint|typecheck|run-many)(?=\s|$)/,
@@ -72,7 +75,9 @@ function packageScript(text) {
   if (tokens[i] === "run") i++;
   if (!PACKAGE_SCRIPTS.has(tokens[i])) return null;
   const flags = tokens.slice(1, i).filter((t) => t !== "run");
-  return { check: `${tokens[0]} ${tokens[i]}`, rest: [...flags, ...tokens.slice(i + 1)].join(" ") };
+  const found = { check: `${tokens[0]} ${tokens[i]}`, rest: [...flags, ...tokens.slice(i + 1)].join(" ") };
+  // A bare `bun test` runs bun's own test runner over every test file, never the "test" script.
+  return tokens[0] === "bun" && tokens[i] === "test" && i === 1 ? { ...found, runner: true } : found;
 }
 
 function builtinCheck(text) {
@@ -91,7 +96,7 @@ function parseCheck(segment, projectCommands) {
     return { check, args: squash(text.slice(project.length).replace(REDIRECTION, "")) };
   }
   const found = builtinCheck(text);
-  return found ? { check: found.check, args: squash(found.rest.replace(REDIRECTION, "")) } : null;
+  return found ? { check: found.check, args: squash(found.rest.replace(REDIRECTION, "")), ...(found.runner && { runner: true }) } : null;
 }
 
 function isMaskedAt(segments, index, pipefail) {
@@ -130,11 +135,22 @@ function editTargets(segment) {
 export function analyzeShell(command, projectCommands = []) {
   const segments = splitCommand(command);
   const pipefail = segments.some((s) => PIPEFAIL.test(s.text));
+  // The folder each segment runs in, relative to where the command started: cd and pushd move it, popd and cd - go back.
   let dir;
+  let previous;
+  let moved = false;
+  const stack = [];
   return segments.flatMap((segment, index) => {
     const cd = CD.exec(segment.text);
-    if (cd) dir = dir && !ABSOLUTE.test(cd[1]) ? `${dir}/${cd[1]}` : cd[1];
-    const events = editTargets(segment.text).map((target) => ({ type: "edit", target }));
+    if (POPD.test(segment.text)) dir = stack.length ? stack.pop() : UNKNOWN_DIR;
+    else if (cd?.[1] === "-") [dir, previous] = moved ? [previous, dir] : [UNKNOWN_DIR, dir];
+    else if (cd) {
+      if (/^pushd/i.test(segment.text)) stack.push(dir);
+      previous = dir;
+      moved = true;
+      dir = dir && !ABSOLUTE.test(cd[1]) ? `${dir}/${cd[1]}` : cd[1];
+    }
+    const events = editTargets(segment.text).map((target) => ({ type: "edit", target, ...(dir && { dir }) }));
     const found = parseCheck(segment.text, projectCommands);
     if (found) events.push({ type: "verify", ...found, masked: isMaskedAt(segments, index, pipefail), ...(dir && { dir }) });
     return events;

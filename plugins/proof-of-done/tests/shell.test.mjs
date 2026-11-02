@@ -146,3 +146,20 @@ test("cd steps add up, and an absolute cd replaces the folder", () => {
   assert.equal(analyzeShell("cd packages && cd api && npm test").find((e) => e.type === "verify").dir, "packages/api");
   assert.equal(analyzeShell("cd packages/api && cd /tmp/x && npm test").find((e) => e.type === "verify").dir, "/tmp/x");
 });
+
+test("pushd/popd and cd - move back to the folder before", () => {
+  const dirs = (command) => analyzeShell(command).filter((e) => e.type === "verify").map((e) => e.dir);
+  assert.deepEqual(dirs("pushd packages/api && npm test && popd && npm test -w packages/web"), ["packages/api", undefined]);
+  assert.deepEqual(dirs("cd packages/api && npm test && cd - && npm test"), ["packages/api", undefined]);
+});
+
+test("a cd before a file change is kept as the edit's folder", () => {
+  const edit = analyzeShell("cd packages/web && echo hi > src/x.js").find((e) => e.type === "edit");
+  assert.deepEqual({ target: edit.target, dir: edit.dir }, { target: "src/x.js", dir: "packages/web" });
+});
+
+test("bun test runs bun's own test runner; bun run test runs the script", () => {
+  assert.equal(analyzeShell("bun test").find((e) => e.type === "verify").runner, true);
+  assert.equal(analyzeShell("bun run test").find((e) => e.type === "verify").runner, undefined);
+  assert.equal(analyzeShell("bun --filter api test").find((e) => e.type === "verify").runner, undefined);
+});

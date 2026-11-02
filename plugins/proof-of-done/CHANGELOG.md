@@ -4,6 +4,7 @@
 
 - Monorepos: each changed package that has its own `test` script needs a passing run after its last edit that covers it. A root `npm test` that only runs another workspace no longer clears a change in `packages/api`; the block names the package and the command for your package manager (`npm test -w packages/api`, `pnpm --filter api test`, `yarn workspace api test`, `bun --filter api test`).
 - Workspace-scoped runs are recognised: `npm -w`/`--workspace`/`--prefix`, `pnpm --filter`/`-F`/`-r`/`-C`, `yarn workspace`, `yarn workspaces foreach`, `bun --filter`, `cd <package> && npm test`, and turbo, nx and lerna runs.
+- More real-world command forms are read: flags after `run` (`npm run -w x test`, `pnpm run --dir x test`), test and task runners started through a package manager (`pnpm vitest`, `yarn jest`, `pnpm exec jest`, `bunx`, `pnpm turbo`, `pnpm nx`, `nx run x:test`, `nx affected`, `yarn workspaces run test`), and quoted names (`--filter "@scope/pkg"`).
 - Only test runs count for a package: a passing `npm run lint` or `tsc` does not clear a change in a package with tests.
 - A run over several workspaces where one package found no tests now counts the tests the others ran, instead of 0.
 - `workspaces: false` in `.claude/proof-of-done.json` turns the package check off.

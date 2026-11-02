@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import path from "node:path";
-import { covers, findWorkspaces, packageOf } from "../lib/workspaces.mjs";
+import { covers, findWorkspaces, packageOf, uncoveredPackages } from "../lib/workspaces.mjs";
 import { tempDir, writeFiles } from "./helpers.mjs";
 
 const pkg = (name, scripts = { test: "node --test" }) => ({ name, scripts });
@@ -250,4 +250,25 @@ test("words that only contain 'test' do not make a script look like tests", (t) 
     const { root, ws } = monorepo(t, scripts);
     assert.deepEqual(covered(ws, run(root, "npm test", "npm test")), [], scripts.test);
   }
+});
+
+test("a root script that calls itself stops instead of looping", (t) => {
+  const { root, ws } = monorepo(t, { test: "npm test" });
+  assert.deepEqual(covered(ws, run(root, "npm test", "npm test")), ["api", "web"]);
+});
+
+test("a package whose test script is npm's placeholder has no tests to run", (t) => {
+  const { root, ws } = monorepo(t, undefined, { "packages/api/package.json": pkg("api", { test: 'echo "Error: no test specified" && exit 1' }) });
+  const entries = [{ type: "edit", file: path.join(root, "packages/api/src/a.js"), cwd: root }, { ...run(root, "npm test", "npm test"), exitCode: 0, masked: false }];
+  assert.deepEqual(uncoveredPackages(entries, ws, () => true), []);
+});
+
+test("a root script with no script of that name counts for every package only for test", (t) => {
+  const { root, ws } = monorepo(t, { lint: "eslint ." });
+  assert.deepEqual(covered(ws, run(root, "npm test", "npm test")), ["api", "web"]);
+});
+
+test("a root script that moves outside the repo counts for every package", (t) => {
+  const { root, ws } = monorepo(t, { test: "cd /elsewhere && npm test -w packages/web" });
+  assert.deepEqual(covered(ws, run(root, "npm test", "npm test")), ["api", "web"]);
 });

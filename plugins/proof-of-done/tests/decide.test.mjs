@@ -292,3 +292,14 @@ test("monorepo: packages without a test script, files outside packages, and an e
 test("not a monorepo: a root run is enough, as before", () => {
   assert.deepEqual(decide({ entries: [wsEdit("packages/api/a.js"), wsRun("npm test", "npm test")] }), { allow: true });
 });
+
+test("monorepo: a failed run of the package's tests is not cleared by a passing run that skips the package", () => {
+  const entries = [
+    wsEdit("packages/api/a.js"),
+    wsRun("npm test -w packages/api", "npm test", "-w packages/api", 1),
+    wsRun("npm test", "npm test"),
+  ];
+  const verdict = decide({ entries, workspaces: workspaces(), lastMessage: "Done. The api check looks flaky." });
+  assert.equal(verdict.allow, false);
+  assert.match(verdict.reason, /packages\/api/);
+});

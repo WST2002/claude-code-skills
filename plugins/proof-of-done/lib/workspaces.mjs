@@ -10,8 +10,11 @@ const ALL_WORKSPACES = new Set(["-ws", "--workspaces", "-r", "--recursive"]);
 // Flags whose value names the package(s) a run is limited to. Folder flags take a path, the others a name or folder.
 const TARGET_FLAGS = new Set(["-w", "--workspace", "--filter", "-F", "--scope", "--projects", "-p"]);
 const FOLDER_FLAGS = new Set(["--prefix", "-C", "--dir", "--cwd"]);
-const TASK_RUNNER = /^(?:npx\s+)?(turbo|nx|lerna)\b/;
-const PACKAGE_MANAGER = /^(npm|pnpm|yarn|bun)\s+(\S+)$/;
+const TASK_RUNNER = /^(?:(?:npx|bunx|npm\s+exec|pnpm(?:\s+(?:exec|dlx))?|yarn(?:\s+dlx)?|bun(?:\s+x)?)\s+)?(turbo|nx|lerna)\b/;
+// A package script run (`npm test`, `pnpm lint`), as opposed to a tool started through one (`pnpm vitest`).
+const PACKAGE_MANAGER = /^(npm|pnpm|yarn|bun)\s+(test|build|lint|typecheck|check)$/;
+// nx commands whose first plain word is a project: `nx test api`, `nx run api:test`.
+const NX_PROJECT = /\bnx\s+(?:test|build|lint|typecheck|run)$/;
 const MAX_SCRIPT_DEPTH = 3;
 
 const readJson = (file) => {
@@ -85,7 +88,12 @@ export function findWorkspaces(startDir) {
   for (let level = 0; level <= MAX_LEVELS_UP; level++) {
     const globs = workspaceGlobs(dir);
     if (globs?.length) {
-      const include = globs.filter((g) => !g.startsWith("!")).map((g) => globToRegExp(trimFolder(g)));
+      // "x/**" also matches the folder x itself, as pnpm and npm read it.
+      const include = globs
+        .filter((g) => !g.startsWith("!"))
+        .map(trimFolder)
+        .flatMap((g) => (g.endsWith("/**") ? [g, g.slice(0, -3)] : [g]))
+        .map(globToRegExp);
       const exclude = globs.filter((g) => g.startsWith("!")).map((g) => globToRegExp(trimFolder(g.slice(1))));
       const bases = [...new Set(globs.filter((g) => !g.startsWith("!")).map(globBase))];
       const packages = [...new Set(bases.flatMap((base) => packageFolders(dir, base)))]
@@ -93,7 +101,10 @@ export function findWorkspaces(startDir) {
         .sort()
         .map((rel) => {
           const pkg = readJson(path.join(dir, rel, "package.json")) ?? {};
-          return { dir: rel, name: typeof pkg.name === "string" ? pkg.name : rel, scripts: pkg.scripts ?? {} };
+          const name = typeof pkg.name === "string" ? pkg.name : rel;
+          // nx can know a package by a shorter project name.
+          const aliases = [name, pkg.nx?.name].filter((n) => typeof n === "string");
+          return { dir: rel, name, aliases, scripts: pkg.scripts ?? {} };
         });
       return { root: dir, manager: manager(dir), scripts: readJson(path.join(dir, "package.json"))?.scripts ?? {}, packages };
     }
@@ -131,7 +142,8 @@ function matchTarget(value, ws) {
   const target = trimFolder(value);
   if (!target) return null;
   const re = globToRegExp(target);
-  const found = ws.packages.filter((p) => p.name === target || p.dir === target || re.test(p.name) || re.test(p.dir));
+  const names = (p) => p.aliases ?? [p.name];
+  const found = ws.packages.filter((p) => names(p).includes(target) || p.dir === target || names(p).some((n) => re.test(n)) || re.test(p.dir));
   return found.length ? found.map((p) => p.dir) : null;
 }
 
@@ -149,7 +161,7 @@ const TEST_CHECK = /\b(?:jest|vitest|playwright test|pytest|go test|cargo test|d
 // a `test` / `test:unit` script. Words that only contain "test" (`tsconfig.test.json`, `build:tests`) do not count.
 const TEST_RUNNERS = new Set(["jest", "vitest", "mocha", "ava", "tap", "playwright", "cypress", "uvu", "jasmine", "karma"]);
 const looksLikeTests = (text) =>
-  text.split(/\s+/).some((word) => TEST_RUNNERS.has(path.posix.basename(word)) || word === "--test" || /^test(?::\S+)?$/.test(word));
+  text.split(/\s+/).some((word) => TEST_RUNNERS.has(path.posix.basename(word)) || word === "--test" || /^test(?:[:_-]\S+)?$/.test(word));
 // A turbo/nx/lerna task that runs tests: `test`, `test:ci`, or turbo's `pkg#test`.
 const TEST_TASK = /^(?:\S+#)?test(?::\S+)?$/;
 
@@ -164,16 +176,23 @@ function namedPackages(check, tokens, baseRel, ws) {
   if (folders.length) return folders.every(Boolean) ? new Set(folders.map((p) => p.dir)) : "all";
   const targets = flagValues(tokens, TARGET_FLAGS);
   const runner = TASK_RUNNER.exec(check)?.[1];
-  if (runner === "nx" && !/run-many$/.test(check)) {
+  if (NX_PROJECT.test(check)) {
     const project = tokens.find((t) => !t.startsWith("-"));
-    if (project) targets.push(project);
+    if (project) targets.push(project.split(":")[0]);
   }
   if (tokens[0] === "workspace" && tokens[1]) targets.push(tokens[1]);
   if (targets.length) {
     const dirs = targets.map((v) => matchTarget(v, ws));
     return dirs.every(Boolean) ? new Set(dirs.flat()) : "all";
   }
-  if (runner || tokens.some((t) => ALL_WORKSPACES.has(t)) || (tokens[0] === "workspaces" && tokens[1] === "foreach")) return "all";
+  // nx run-many / affected with --exclude: every package except the excluded ones.
+  const excluded = runner === "nx" ? flagValues(tokens, new Set(["--exclude"])).flatMap((v) => v.split(",")) : [];
+  if (excluded.length) {
+    const dirs = excluded.map((v) => matchTarget(v, ws));
+    const out = new Set(dirs.every(Boolean) ? dirs.flat() : []);
+    return new Set(ws.packages.map((p) => p.dir).filter((d) => !out.has(d)));
+  }
+  if (runner || tokens.some((t) => ALL_WORKSPACES.has(t)) || tokens[0] === "workspaces") return "all";
   return null;
 }
 
@@ -203,14 +222,16 @@ function scopeOfRun(entry, baseRel, ws, depth = 0) {
   // (`npm test -- --ci`). A command none of the patterns know (`make ci`, `npm run test:ci`) counts for every package.
   const run = analyzeShell(`${entry.check ?? entry.command ?? ""} ${entry.args ?? ""}`).find((e) => e.type === "verify");
   if (!run) return "all";
-  if (run.runner || entry.runner) return "all";
+  const own = inPackage(baseRel, ws);
+  // bun's own runner (`bun test`) runs every test file under the folder it starts in. Only the recorded entry knows
+  // whether it was the runner: read again, `bun run test` looks the same.
+  if (entry.runner) return own ? new Set([own.dir]) : "all";
   const { check } = run;
   // Words after `--` go to the test runner, and pnpm's -w means the workspace root.
   const words = run.args.split(/\s+/).filter(Boolean);
   const before = words.includes("--") ? words.slice(0, words.indexOf("--")) : words;
   const pnpmRoot = check.startsWith("pnpm ") && before.includes("-w");
   const tokens = pnpmRoot ? before.filter((t) => t !== "-w") : before;
-  const own = inPackage(baseRel, ws);
   const script = PACKAGE_MANAGER.exec(check)?.[2];
   if (script) {
     const named = namedPackages(check, tokens, baseRel, ws);
@@ -221,7 +242,7 @@ function scopeOfRun(entry, baseRel, ws, depth = 0) {
   }
   if (TASK_RUNNER.test(check)) {
     // The tasks are every plain word: `turbo run build test`, `nx test api`, `nx run-many -t test:ci`.
-    const tasks = `${check} ${tokens.join(" ")}`.split(/[\s=,]+/);
+    const tasks = `${check} ${tokens.join(" ")}`.split(/[\s=,]+/).flatMap((t) => [t, t.slice(t.indexOf(":") + 1)]);
     return tasks.some((t) => TEST_TASK.test(t)) ? namedPackages(check, tokens, baseRel, ws) ?? "all" : NONE;
   }
   if (!TEST_CHECK.test(check)) return NONE;
@@ -261,5 +282,7 @@ export function covers(entry, pkg, ws) {
   const baseRel = relativeToRoot(path.resolve(nativePath(entry.cwd), nativePath(entry.dir ?? "")), ws);
   if (baseRel === null) return true;
   const scope = scopeOfRun(entry, baseRel, ws);
-  return scope === "all" || scope.has(pkg.dir);
+  // A run of a package's tests also counts for the packages nested inside it (test apps, examples, fixtures),
+  // since its tests often run them.
+  return scope === "all" || [...scope].some((dir) => pkg.dir === dir || pkg.dir.startsWith(`${dir}/`));
 }

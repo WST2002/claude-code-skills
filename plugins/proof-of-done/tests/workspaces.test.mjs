@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { covers, findWorkspaces, packageOf, uncoveredPackages } from "../lib/workspaces.mjs";
 import { tempDir, writeFiles } from "./helpers.mjs";
+import { entriesFor } from "../lib/evidence.mjs";
 
 const pkg = (name, scripts = { test: "node --test" }) => ({ name, scripts });
 
@@ -171,7 +172,9 @@ test("a nested package belongs to the innermost package folder", (t) => {
   });
   const ws = findWorkspaces(root);
   assert.equal(packageOf(path.join(root, "packages/ui/examples/demo/src/x.js"), root, ws).name, "demo");
-  assert.deepEqual(covered(ws, run(root, "npm test -w packages/ui", "npm test", "-w packages/ui")), ["ui"]);
+  assert.deepEqual(covered(ws, run(root, "npm test -w packages/ui/examples/demo", "npm test", "-w packages/ui/examples/demo")), ["demo"]);
+  // The outer package's tests often run the packages inside it (test apps, examples), so they count for them too.
+  assert.deepEqual(covered(ws, run(root, "npm test -w packages/ui", "npm test", "-w packages/ui")), ["ui", "demo"]);
 });
 
 test("dependency selectors (api..., ...api, api^...) count for every package", (t) => {
@@ -271,4 +274,58 @@ test("a root script with no script of that name counts for every package only fo
 test("a root script that moves outside the repo counts for every package", (t) => {
   const { root, ws } = monorepo(t, { test: "cd /elsewhere && npm test -w packages/web" });
   assert.deepEqual(covered(ws, run(root, "npm test", "npm test")), ["api", "web"]);
+});
+
+test("bun: a script run is not bun's runner, and the runner in a package folder covers that package", (t) => {
+  const { root, ws } = monorepo(t, { test: "bun --filter api test" }, { "bun.lock": "" });
+  const at = (cwd, command) => entriesFor({ cwd, session_id: "s", hook_event_name: "PostToolUse", tool_name: "Bash", tool_input: { command } }, { enabled: true, verify: null, ignore: [], error: null }, [])[0];
+  assert.deepEqual(covered(ws, at(path.join(root, "packages/web"), "bun run test")), ["web"]);
+  assert.deepEqual(covered(ws, at(root, "bun --filter web test")), ["web"]);
+  assert.deepEqual(covered(ws, at(path.join(root, "packages/web"), "bun test")), ["web"]);
+  assert.deepEqual(covered(ws, at(root, "bun test")), ["api", "web"]);
+});
+
+test("a folder/** workspace glob includes the folder itself", (t) => {
+  const root = tempDir(t);
+  writeFiles(root, { "package.json": { workspaces: ["packages/kit/test/**"] }, "packages/kit/test/package.json": pkg("kit-tests"), "packages/kit/test/apps/a/package.json": pkg("app-a") });
+  assert.deepEqual(findWorkspaces(root).packages.map((p) => p.dir), ["packages/kit/test", "packages/kit/test/apps/a"]);
+});
+
+test("a run that covers a package also covers the packages nested inside it", (t) => {
+  const root = tempDir(t);
+  writeFiles(root, {
+    "pnpm-workspace.yaml": "packages:\n  - 'packages/*'\n  - 'packages/kit/test/apps/*'\n",
+    "package.json": {},
+    "packages/kit/package.json": pkg("@sveltejs/kit", { test: "pnpm -r --filter=./test/** test" }),
+    "packages/kit/test/apps/basics/package.json": pkg("test-basics"),
+    "packages/other/package.json": pkg("other"),
+  });
+  const ws = findWorkspaces(root);
+  assert.deepEqual(covered(ws, run(root, "pnpm --filter @sveltejs/kit test", "pnpm test", "--filter @sveltejs/kit")), ["@sveltejs/kit", "test-basics"]);
+});
+
+test("hyphenated test steps in a root script look like tests", (t) => {
+  const { root, ws } = monorepo(t, { test: "pnpm test-unit && pnpm test-serve" });
+  assert.deepEqual(covered(ws, run(root, "pnpm test", "pnpm test")), ["api", "web"]);
+});
+
+test("nx: project names from package.json nx.name, project:target runs, affected and --exclude", (t) => {
+  const root = tempDir(t);
+  writeFiles(root, {
+    "package.json": { workspaces: ["packages/*"] },
+    "packages/eslint-plugin/package.json": { name: "@typescript-eslint/eslint-plugin", nx: { name: "eslint-plugin" }, scripts: { test: "vitest" } },
+    "packages/parser/package.json": pkg("@typescript-eslint/parser"),
+    "packages/integration-tests/package.json": pkg("integration-tests"),
+  });
+  const ws = findWorkspaces(root);
+  assert.deepEqual(covered(ws, run(root, "npx nx test eslint-plugin", "npx nx test", "eslint-plugin")), ["@typescript-eslint/eslint-plugin"]);
+  assert.deepEqual(covered(ws, run(root, "npx nx run eslint-plugin:test", "npx nx run", "eslint-plugin:test")), ["@typescript-eslint/eslint-plugin"]);
+  assert.deepEqual(covered(ws, run(root, "npx nx run eslint-plugin:build", "npx nx run", "eslint-plugin:build")), []);
+  assert.deepEqual(covered(ws, run(root, "npx nx affected -t test", "npx nx affected", "-t test")).length, 3);
+  assert.deepEqual(covered(ws, run(root, "nx run-many -t test --exclude integration-tests", "nx run-many", "-t test --exclude integration-tests")), ["@typescript-eslint/eslint-plugin", "@typescript-eslint/parser"]);
+});
+
+test("yarn 1 workspaces run test covers every package", (t) => {
+  const { root, ws } = monorepo(t);
+  assert.deepEqual(covered(ws, run(root, "yarn workspaces run test", "yarn test", "workspaces")), ["api", "web"]);
 });

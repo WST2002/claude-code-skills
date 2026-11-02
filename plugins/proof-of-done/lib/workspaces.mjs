@@ -48,21 +48,24 @@ function workspaceGlobs(dir) {
   return globs;
 }
 
-function packageFolders(root, depth = 0, rel = "") {
-  if (depth > MAX_GLOB_DEPTH) return [];
+// The fixed folder a glob starts from ("packages" for "packages/*"), so only that part of the repo is searched.
+const globBase = (glob) => trimFolder(glob).split("/").filter((part, i, parts) => !/[*?[{]/.test(parts.slice(0, i + 1).join("/"))).join("/");
+
+function packageFolders(root, rel = "", depth = 0) {
+  const own = rel && fs.existsSync(path.join(root, rel, "package.json")) ? [rel] : [];
+  if (depth > MAX_GLOB_DEPTH) return own;
   let names;
   try {
     names = fs.readdirSync(path.join(root, rel), { withFileTypes: true });
   } catch {
-    return [];
+    return own;
   }
-  return names
-    .filter((d) => d.isDirectory() && !SKIPPED_FOLDERS.has(d.name))
-    .flatMap((d) => {
-      const child = rel ? `${rel}/${d.name}` : d.name;
-      const own = fs.existsSync(path.join(root, child, "package.json")) ? [child] : [];
-      return [...own, ...packageFolders(root, depth + 1, child)];
-    });
+  return [
+    ...own,
+    ...names
+      .filter((d) => d.isDirectory() && !SKIPPED_FOLDERS.has(d.name))
+      .flatMap((d) => packageFolders(root, rel ? `${rel}/${d.name}` : d.name, depth + 1)),
+  ];
 }
 
 function manager(root) {
@@ -81,7 +84,8 @@ export function findWorkspaces(startDir) {
     if (globs?.length) {
       const include = globs.filter((g) => !g.startsWith("!")).map((g) => globToRegExp(trimFolder(g)));
       const exclude = globs.filter((g) => g.startsWith("!")).map((g) => globToRegExp(trimFolder(g.slice(1))));
-      const packages = packageFolders(dir)
+      const bases = [...new Set(globs.filter((g) => !g.startsWith("!")).map(globBase))];
+      const packages = [...new Set(bases.flatMap((base) => packageFolders(dir, base)))]
         .filter((rel) => include.some((re) => re.test(rel)) && !exclude.some((re) => re.test(rel)))
         .sort()
         .map((rel) => {
@@ -91,7 +95,7 @@ export function findWorkspaces(startDir) {
       return { root: dir, manager: manager(dir), scripts: readJson(path.join(dir, "package.json"))?.scripts ?? {}, packages };
     }
     const parent = path.dirname(dir);
-    if (parent === dir) break;
+    if (parent === dir || fs.existsSync(path.join(dir, ".git"))) break;
     dir = parent;
   }
   return null;
@@ -131,7 +135,9 @@ const flagValues = (tokens, flags) =>
  * workspace flags (its root script decides). Unknown targets count as "all" so a run is never wrongly rejected.
  */
 function scopeOfCommand(check, args, baseRel, ws) {
-  const tokens = args.split(/\s+/).filter(Boolean);
+  // Words after `--` go to the test runner, and pnpm's -w means the workspace root.
+  const all = args.split(/\s+/).filter(Boolean);
+  const tokens = (all.includes("--") ? all.slice(0, all.indexOf("--")) : all).filter((t) => !(check.startsWith("pnpm ") && t === "-w"));
   const folders = flagValues(tokens, FOLDER_FLAGS).map((v) => inPackage(posix(path.posix.join(baseRel, trimFolder(v))), ws));
   if (folders.length) return folders.every(Boolean) ? new Set(folders.map((p) => p.dir)) : "all";
   const targets = flagValues(tokens, TARGET_FLAGS);
@@ -150,10 +156,16 @@ function scopeOfCommand(check, args, baseRel, ws) {
 }
 
 // A package script run at the root covers what its root script runs; a plain test runner there covers everything.
+// Only runs of the same script count: a `lint` step inside the root `test` script does not run any package's tests.
 function scopeOfRootScript(check, ws, depth) {
-  const script = ws.scripts[PACKAGE_MANAGER.exec(check)[2]];
+  const name = PACKAGE_MANAGER.exec(check)[2];
+  const script = ws.scripts[name];
   if (typeof script !== "string" || depth >= MAX_SCRIPT_DEPTH) return "all";
-  const runs = analyzeShell(script).filter((e) => e.type === "verify");
+  const sameScript = (e) => {
+    const pm = PACKAGE_MANAGER.exec(e.check);
+    return !pm || pm[2] === name;
+  };
+  const runs = analyzeShell(script).filter((e) => e.type === "verify" && sameScript(e));
   if (!runs.length) return "all";
   const dirs = new Set();
   for (const event of runs) {

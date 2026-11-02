@@ -118,3 +118,34 @@ test("when the target cannot be worked out, the run counts for every package", (
   assert.deepEqual(covered(ws, run(path.dirname(root), "npm test", "npm test")), ["api", "web"]);
   assert.deepEqual(covered(ws, { type: "verify", command: "npm test", check: "npm test", args: "" }), ["api", "web"]);
 });
+
+test("flags after -- belong to the test runner, not to the workspace choice", (t) => {
+  const { root, ws } = monorepo(t);
+  assert.deepEqual(covered(ws, run(root, "npm test -- -w api", "npm test", "-- -w api")), ["web"]);
+});
+
+test("a root test script covers what its test runs cover, not what its lint step covers", (t) => {
+  const { root, ws } = monorepo(t, { test: "npm run lint && npm test -w packages/web", lint: "eslint ." });
+  assert.deepEqual(covered(ws, run(root, "npm test", "npm test")), ["web"]);
+});
+
+test("cd .. back to the root makes a plain root run", (t) => {
+  const { root, ws } = monorepo(t);
+  assert.deepEqual(covered(ws, run(root, "cd packages/api && cd ../.. && npm test", "npm test", "", { dir: "packages/api/../.." })), ["web"]);
+});
+
+test("pnpm -w runs the root script", (t) => {
+  const { root, ws } = monorepo(t, { test: "pnpm --filter web test" }, { "pnpm-workspace.yaml": "packages:\n  - 'packages/*'\n" });
+  assert.deepEqual(covered(ws, run(root, "pnpm -w test", "pnpm test", "-w")), ["web"]);
+});
+
+test("the search for a monorepo stops at the git root", (t) => {
+  const outer = tempDir(t);
+  writeFiles(outer, { "package.json": { workspaces: ["*"] }, "app/.git/HEAD": "ref: refs/heads/main\n", "app/package.json": pkg("app") });
+  assert.equal(findWorkspaces(path.join(outer, "app")), null);
+});
+
+test("only the folders the workspace globs point at are searched", (t) => {
+  const { root } = monorepo(t, undefined, { "data/a/b/package.json": pkg("not-a-workspace") });
+  assert.deepEqual(findWorkspaces(root).packages.map((p) => p.dir), ["packages/api", "packages/web"]);
+});

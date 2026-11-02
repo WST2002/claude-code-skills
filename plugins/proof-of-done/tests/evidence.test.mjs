@@ -90,3 +90,20 @@ test("unexpected payloads produce no entries", () => {
     assert.deepEqual(entriesFor(input, config, []), []);
   }
 });
+
+test("a check run after cd in the same command records the folder it ran in", () => {
+  const [entry] = entriesFor(payload({ tool_name: "Bash", tool_input: { command: "cd packages/api && npm test" } }), config, []);
+  assert.equal(entry.dir, "packages/api");
+  const [plain] = entriesFor(payload({ tool_name: "Bash", tool_input: { command: "npm test" } }), config, []);
+  assert.equal("dir" in plain, false);
+});
+
+test("a file changed after cd in the same command is recorded inside that folder", () => {
+  const [entry] = entriesFor(payload({ tool_name: "Bash", tool_input: { command: "cd packages/web && echo hi > src/x.js" } }), config, []);
+  assert.equal(entry.file, "packages/web/src/x.js");
+});
+
+test("bun's own test runner is marked as such", () => {
+  const [entry] = entriesFor(payload({ tool_name: "Bash", tool_input: { command: "bun test" } }), config, []);
+  assert.equal(entry.runner, true);
+});

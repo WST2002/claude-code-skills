@@ -29,8 +29,10 @@ export function testsRun(output) {
     .replace(ANSI, "")
     .split(/\r?\n/)
     .map((line) => line.trim());
-  if (lines.some((line) => NONE_FOUND.test(line))) return 0;
   const summary = lines.filter((line) => SUMMARY_LINES.some((re) => re.test(line)));
-  if (summary.length === 0) return goTestsRun(lines);
-  return summary.reduce((sum, line) => sum + [...line.matchAll(RAN)].reduce((s, m) => s + Number(m[1] ?? m[2]), 0), 0);
+  const ran = summary.reduce((sum, line) => sum + [...line.matchAll(RAN)].reduce((s, m) => s + Number(m[1] ?? m[2]), 0), 0);
+  // A run over several workspaces can print one package's "No tests found" next to another package's results.
+  if (ran > 0) return ran;
+  if (lines.some((line) => NONE_FOUND.test(line))) return 0;
+  return summary.length === 0 ? goTestsRun(lines) : ran;
 }

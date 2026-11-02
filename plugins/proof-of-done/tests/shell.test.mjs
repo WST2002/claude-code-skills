@@ -98,3 +98,100 @@ test("events come out in command order", () => {
   assert.deepEqual(analyzeShell("npm test && printf x > src/a.js").map((e) => e.type), ["verify", "edit"]);
   assert.deepEqual(analyzeShell("printf x > src/a.js && npm test").map((e) => e.type), ["edit", "verify"]);
 });
+
+test("package scripts run for one workspace keep the workspace flags as arguments", () => {
+  for (const [command, check, args] of [
+    ["npm test -w packages/api", "npm test", "-w packages/api"],
+    ["npm run test --workspace=api", "npm test", "--workspace=api"],
+    ["npm -w packages/api test", "npm test", "-w packages/api"],
+    ["npm --prefix packages/api run test", "npm test", "--prefix packages/api"],
+    ["pnpm --filter api test", "pnpm test", "--filter api"],
+    ["pnpm -F @shop/api run build", "pnpm build", "-F @shop/api"],
+    ["pnpm -r test", "pnpm test", "-r"],
+    ["pnpm -C packages/api lint", "pnpm lint", "-C packages/api"],
+    ["yarn workspace api test", "yarn test", "workspace api"],
+    ["yarn workspaces foreach -A run test", "yarn test", "workspaces foreach -A"],
+    ["bun --filter api test", "bun test", "--filter api"],
+  ]) {
+    assert.deepEqual(verifies(command)[0], { check, args, masked: false }, command);
+  }
+});
+
+test("monorepo task runners are checks", () => {
+  for (const [command, check] of [
+    ["npx turbo run test", "npx turbo run test"], ["turbo test --filter=api", "turbo test"], ["npx nx test api", "npx nx test"],
+    ["npx nx run-many -t test", "npx nx run-many"], ["npx lerna run test --scope api", "npx lerna run test"],
+  ]) {
+    assert.equal(verifies(command)[0]?.check, check, command);
+  }
+});
+
+test("package manager commands that run no check are not checks", () => {
+  for (const command of ["npm -w packages/api install", "pnpm --filter api add zod", "yarn workspace api add zod", "npm -v", "pnpm -r exec ls"]) {
+    assert.deepEqual(verifies(command), [], command);
+  }
+});
+
+test("a cd before a check in the same command is kept as the check's folder", () => {
+  assert.equal(analyzeShell("cd packages/api && npm test").find((e) => e.type === "verify").dir, "packages/api");
+  assert.equal(analyzeShell("Set-Location packages/api; npm test").find((e) => e.type === "verify").dir, "packages/api");
+  assert.equal(analyzeShell("npm test").find((e) => e.type === "verify").dir, undefined);
+});
+
+test("pnpm -w is the workspace root, not a flag that takes a value", () => {
+  assert.deepEqual(verifies("pnpm -w test")[0], { check: "pnpm test", args: "-w", masked: false });
+});
+
+test("cd steps add up, and an absolute cd replaces the folder", () => {
+  assert.equal(analyzeShell("cd packages && cd api && npm test").find((e) => e.type === "verify").dir, "packages/api");
+  assert.equal(analyzeShell("cd packages/api && cd /tmp/x && npm test").find((e) => e.type === "verify").dir, "/tmp/x");
+});
+
+test("pushd/popd and cd - move back to the folder before", () => {
+  const dirs = (command) => analyzeShell(command).filter((e) => e.type === "verify").map((e) => e.dir);
+  assert.deepEqual(dirs("pushd packages/api && npm test && popd && npm test -w packages/web"), ["packages/api", undefined]);
+  assert.deepEqual(dirs("cd packages/api && npm test && cd - && npm test"), ["packages/api", undefined]);
+});
+
+test("a cd before a file change is kept as the edit's folder", () => {
+  const edit = analyzeShell("cd packages/web && echo hi > src/x.js").find((e) => e.type === "edit");
+  assert.deepEqual({ target: edit.target, dir: edit.dir }, { target: "src/x.js", dir: "packages/web" });
+});
+
+test("bun test runs bun's own test runner; bun run test runs the script", () => {
+  assert.equal(analyzeShell("bun test").find((e) => e.type === "verify").runner, true);
+  assert.equal(analyzeShell("bun run test").find((e) => e.type === "verify").runner, undefined);
+  assert.equal(analyzeShell("bun --filter api test").find((e) => e.type === "verify").runner, undefined);
+});
+
+test("PowerShell Push-Location and Pop-Location move the folder like pushd and popd", () => {
+  const dirs = (command) => analyzeShell(command).filter((e) => e.type === "verify").map((e) => e.dir);
+  assert.deepEqual(dirs("Push-Location packages/web && npm test && Pop-Location && npm test"), ["packages/web", undefined]);
+});
+
+test("flags between run and the script name are read", () => {
+  for (const [command, check, args] of [
+    ["npm run -w workspaces/arborist test", "npm test", "-w workspaces/arborist"],
+    ["pnpm run --dir packages/adapter-node test", "pnpm test", "--dir packages/adapter-node"],
+    ["bun run --filter @opencode/cli test", "bun test", "--filter @opencode/cli"],
+    ["bun run --cwd packages/cli test", "bun test", "--cwd packages/cli"],
+  ]) {
+    assert.deepEqual(verifies(command)[0], { check, args, masked: false }, command);
+  }
+});
+
+test("test runners and task runners started through a package manager are checks", () => {
+  for (const [command, check] of [
+    ["pnpm vitest run", "pnpm vitest"], ["yarn jest examples/getting-started", "yarn jest"], ["bunx vitest", "bunx vitest"],
+    ["pnpm exec jest", "pnpm exec jest"], ["pnpm turbo run test --filter=@astrojs/react", "pnpm turbo run test"],
+    ["bun turbo test --filter=x", "bun turbo test"], ["pnpm nx test eslint-plugin", "pnpm nx test"],
+    ["npx nx run eslint-plugin:test", "npx nx run"], ["npx nx affected -t test", "npx nx affected"], ["yarn workspaces run test", "yarn test"],
+  ]) {
+    assert.equal(verifies(command)[0]?.check, check, command);
+  }
+});
+
+test("quoted workspace names are kept without the quotes", () => {
+  assert.deepEqual(verifies('pnpm --filter "@astrojs/react" run test')[0], { check: "pnpm test", args: "--filter @astrojs/react", masked: false });
+  assert.deepEqual(verifies("pnpm --filter '@astrojs/react' test | tail")[0], { check: "pnpm test", args: "--filter @astrojs/react", masked: true });
+});

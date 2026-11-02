@@ -7,7 +7,7 @@ const TESTS_MODES = new Set(["off", "ask", "strict"]);
 const strings = (value) => (Array.isArray(value) ? value.filter((v) => typeof v === "string") : null);
 
 export function loadConfig(projectDir) {
-  const defaults = { enabled: true, verify: null, ignore: [], tamper: true, tests: "ask", error: null };
+  const defaults = { enabled: true, verify: null, ignore: [], tamper: true, tests: "ask", workspaces: true, error: null };
   let raw;
   try {
     raw = fs.readFileSync(path.join(projectDir, CONFIG_PATH), "utf8");
@@ -26,6 +26,7 @@ export function loadConfig(projectDir) {
     ignore: strings(parsed.ignore) ?? [],
     tamper: parsed.tamper !== false,
     tests: TESTS_MODES.has(parsed.tests) ? parsed.tests : "ask",
+    workspaces: parsed.workspaces !== false,
     error: null,
   };
 }

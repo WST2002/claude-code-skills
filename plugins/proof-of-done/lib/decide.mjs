@@ -1,6 +1,7 @@
 import path from "node:path";
 import { tamperReason } from "./tamper.mjs";
 import { untestedReason } from "./untested.mjs";
+import { packageTestCommand, uncoveredPackages } from "./workspaces.mjs";
 
 const SKIP_LINE = /Verification:\s*skipped\s*[—–-]+\s*(.+)/i;
 const TEST_CHANGES_LINE = /^\s*Test changes:\s*(.+)$/im;
@@ -78,7 +79,16 @@ const explained = (pattern, message) => {
   return Boolean(match && match[1].trim().length >= MIN_SKIP_REASON);
 };
 
-function verificationProblem(entries, lastEdit, lastMessage, verifyCommands) {
+// In a monorepo, a run at the root can test some packages and not others: each changed package with tests needs
+// a passing run after its last edit that covers it.
+function packagesReason(packages, ws, runs) {
+  const changed = packages.map((p) => p.dir).join(", ");
+  const ran = [...new Set(runs.map((e) => `\`${e.command}\``))].join(", ");
+  const commands = packages.map((p) => `\`${packageTestCommand(p, ws)}\``).join(", ");
+  return `You changed code in ${changed}, but the checks after your last edit there (${ran}) did not run ${packages.length === 1 ? "that package's" : "those packages'"} tests. Run: ${commands}. Then report the results. ${SKIP_HINT}`;
+}
+
+function verificationProblem(entries, lastEdit, lastMessage, verifyCommands, workspaces) {
   if (explained(SKIP_LINE, lastMessage)) return null;
   const runs = entries.slice(lastEdit + 1).filter((e) => e.type === "verify");
   if (runs.length === 0) return unverifiedReason(entries, verifyCommands);
@@ -87,6 +97,8 @@ function verificationProblem(entries, lastEdit, lastMessage, verifyCommands) {
   if (failing) return failedReason(failing);
   const stale = staleFailure(entries, lastEdit);
   if (stale) return staleFailureReason(stale);
+  const uncovered = workspaces ? uncoveredPackages(entries, workspaces, isPassing) : [];
+  if (uncovered.length) return packagesReason(uncovered, workspaces, runs);
   const flaky = latest.find((e) => e.earlierFailure);
   return flaky && !FLAKY_MENTION.test(lastMessage ?? "") ? flakyReason(flaky) : null;
 }
@@ -102,15 +114,16 @@ function untestedProblem(entries, untested, testsMode, lastMessage) {
 /**
  * `tampering`: test changes from findTampering that can make checks pass without a fix.
  * `untested`: code changed with no test change, from findUntested; `testsMode` is "ask", "strict" or "off".
+ * `workspaces`: the monorepo from findWorkspaces, or null; then each changed package's tests must have run.
  * A block that asks the user about untested files returns them as `askedAbout`, so they are not asked about again.
  */
-export function decide({ entries, lastMessage = "", stopHookActive = false, verifyCommands = [], tampering = [], untested = [], testsMode = "ask" }) {
+export function decide({ entries, lastMessage = "", stopHookActive = false, verifyCommands = [], tampering = [], untested = [], testsMode = "ask", workspaces = null }) {
   if (stopHookActive) return { allow: true };
   const lastEdit = entries.findLastIndex((e) => e.type === "edit");
   if (lastEdit === -1) return { allow: true };
   const missingTests = untestedProblem(entries, untested, testsMode, lastMessage);
   const problems = [
-    verificationProblem(entries, lastEdit, lastMessage, verifyCommands),
+    verificationProblem(entries, lastEdit, lastMessage, verifyCommands, workspaces),
     tampering.length && !explained(TEST_CHANGES_LINE, lastMessage) ? tamperReason(tampering) : null,
     missingTests?.reason,
   ].filter(Boolean);

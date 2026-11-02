@@ -79,3 +79,7 @@ test("output without a test summary is unknown", () => {
     assert.equal(testsRun(output), null, String(output));
   }
 });
+
+test("a run over several packages where one found no tests still counts the tests that ran", () => {
+  assert.equal(testsRun("Tests:       3 passed, 3 total\n> web@1.0.0 test\n> jest --passWithNoTests\nNo tests found, exiting with code 0"), 3);
+});

@@ -1,3 +1,4 @@
+import path from "node:path";
 import { isCodeFile, parseExitCode } from "./classify.mjs";
 import { testsRun } from "./output.mjs";
 import { SHELL_EDIT, analyzeShell } from "./shell.mjs";
@@ -23,11 +24,13 @@ function shellEntries(input, config, projectCommands, at) {
   const ran = input.hook_event_name === "PostToolUse" ? testsRun(outputOf(input)) : null;
   return analyzeShell(command, projectCommands).flatMap((event) => {
     if (event.type === "edit") {
-      const counts = event.target === SHELL_EDIT || isCodeFile(event.target, cwd, config.ignore);
-      return counts ? [{ type: "edit", file: event.target, cwd, at }] : [];
+      if (event.target === SHELL_EDIT) return [{ type: "edit", file: SHELL_EDIT, cwd, at }];
+      // A file changed after a cd in the same command lives in that folder.
+      const file = event.dir && !path.isAbsolute(event.target) ? path.posix.join(event.dir, event.target) : event.target;
+      return isCodeFile(file, cwd, config.ignore) ? [{ type: "edit", file, cwd, at }] : [];
     }
-    const { check, args, masked } = event;
-    const entry = { type: "verify", command, check, args, exitCode: exitCodeOf(input), masked, cwd, at };
+    const { check, args, masked, dir, runner } = event;
+    const entry = { type: "verify", command, check, args, exitCode: exitCodeOf(input), masked, cwd, ...(dir && { dir }), ...(runner && { runner }), at };
     return [ran === null ? entry : { ...entry, testsRun: ran }];
   });
 }

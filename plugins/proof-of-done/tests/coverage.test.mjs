@@ -100,3 +100,42 @@ test("a real lcov report from node's test runner is read", (t) => {
   // Node marks the closing brace of the branch that never ran as not run too.
   assert.deepEqual(findUncovered({ diff: diffOf("src/price.js", [3, 4, 5]), root, coverage }), [{ file: "src/price.js", lines: [4, 5] }]);
 });
+
+test("istanbul: a small statement that never ran is not hidden by a bigger one listed after it", (t) => {
+  const root = tempDir(t);
+  const file = path.join(root, "src/order.js");
+  writeFiles(root, {
+    "coverage/coverage-final.json": {
+      [file]: { statementMap: { 0: { start: { line: 4 }, end: { line: 5 } }, 1: { start: { line: 1 }, end: { line: 6 } } }, s: { 0: 0, 1: 1 } },
+    },
+  });
+  assert.deepEqual(hits(readCoverage(root, [root], 0), root, "src/order.js"), { 1: 1, 2: 1, 3: 1, 4: 0, 5: 0, 6: 1 });
+});
+
+test("when two reports list the same line, a run in either one counts", (t) => {
+  const root = tempDir(t);
+  writeFiles(root, {
+    "coverage/lcov.info": "SF:src/a.js\nDA:1,0\nDA:2,3\nend_of_record\n",
+    "coverage/coverage-final.json": { [path.join(root, "src/a.js")]: { statementMap: { 0: { start: { line: 1 }, end: { line: 1 } }, 1: { start: { line: 2 }, end: { line: 2 } } }, s: { 0: 2, 1: 0 } } },
+  });
+  assert.deepEqual(hits(readCoverage(root, [root], 0), root, "src/a.js"), { 1: 2, 2: 3 });
+});
+
+test("cobertura file names are read from the report's source folder, not the report's folder", (t) => {
+  const root = tempDir(t);
+  writeFiles(root, { "reports/coverage.xml": `<coverage><sources><source>${path.join(root, "app")}</source></sources><packages><package><classes><class filename="order.py"><lines><line number="2" hits="0"/></lines></class></classes></package></packages></coverage>` });
+  assert.deepEqual(hits(readCoverage(root, [path.join(root, "reports")], 0), root, "app/order.py"), { 2: 0 });
+});
+
+test("report paths match edited files whatever their case on Windows", { skip: process.platform !== "win32" }, (t) => {
+  const root = tempDir(t);
+  writeFiles(root, { "coverage/lcov.info": "SF:SRC/Order.JS\nDA:3,0\nend_of_record\n" });
+  assert.deepEqual(findUncovered({ diff: diffOf("src/order.js", [3]), root, coverage: readCoverage(root, [root], 0) }), [{ file: "src/order.js", lines: [3] }]);
+});
+
+test("test files and non-code files are never reported, even when a report lists them", (t) => {
+  const root = tempDir(t);
+  writeFiles(root, { "coverage/lcov.info": "SF:test/order.test.js\nDA:1,0\nend_of_record\nSF:config/app.json\nDA:1,0\nend_of_record\n" });
+  const diff = [diffOf("test/order.test.js", [1]), diffOf("config/app.json", [1])].join("\n");
+  assert.deepEqual(findUncovered({ diff, root, coverage: readCoverage(root, [root], 0) }), []);
+});

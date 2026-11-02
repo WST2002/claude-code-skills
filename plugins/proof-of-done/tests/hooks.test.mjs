@@ -381,3 +381,27 @@ test("coverage: a report from before the last edit is not used, and \"coverage\"
   off.testWithCoverage();
   assert.equal(off.stop().stdout, "");
 });
+
+test("coverage: a subagent never asks about uncovered lines", (t) => {
+  const { stop, testWithCoverage, editPrice } = coverageProject(t);
+  editPrice();
+  testWithCoverage();
+  assert.equal(stop({ hook_event_name: "SubagentStop" }).stdout, "");
+});
+
+test("coverage: a monorepo package's own report is read", (t) => {
+  const ctx = gitProject(t);
+  writeFiles(ctx.project, {
+    "package.json": { private: true, workspaces: ["packages/*"], scripts: { test: "npm test --workspaces" } },
+    "packages/shop/package.json": { name: "shop", scripts: { test: "node --test" } },
+    "packages/shop/src/price.js": "exports.total = (items) => items.reduce((s, i) => s + i, 0);\n",
+  });
+  ctx.git("add", "-A");
+  ctx.git("commit", "-q", "-m", "shop");
+  ctx.start();
+  writeFiles(ctx.project, { "packages/shop/src/price.js": "exports.total = (items, coupon) => {\n  if (coupon) {\n    return 0;\n  }\n  return items.length;\n};\n" });
+  ctx.record({ tool_name: "Edit", tool_input: { file_path: path.join(ctx.project, "packages/shop/src/price.js") } });
+  writeFiles(ctx.project, { "packages/shop/coverage/lcov.info": "SF:src/price.js\nDA:1,1\nDA:2,1\nDA:3,0\nDA:4,0\nDA:5,1\nend_of_record\n" });
+  ctx.record({ tool_name: "Bash", tool_input: { command: "npm test --workspaces" }, tool_response: { stdout: "", stderr: "" } });
+  assert.match(block(ctx.stop()).reason, /packages\/shop\/src\/price\.js \(lines 3–4\)/);
+});

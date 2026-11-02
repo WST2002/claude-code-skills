@@ -3,11 +3,11 @@ import { isTestFile, parseDiff } from "./tamper.mjs";
 
 // Changes to these rarely need a test of their own: styles, markup, data, config, docs, assets and scripts.
 const NO_TEST_NEEDED = [
-  /\.(css|scss|sass|less|styl|html?|svg|json5?|jsonc|ya?ml|toml|ini|cfg|conf|env|xml|properties|md|mdx|txt|rst|lock|png|jpe?g|gif|webp|ico|pdf|snap|d\.ts)$/i,
+  /\.(css|scss|sass|less|styl|html?|svg|json5?|jsonc|ya?ml|toml|ini|cfg|conf|env|xml|properties|md|mdx|txt|rst|lock|info|png|jpe?g|gif|webp|ico|pdf|snap|d\.ts)$/i,
   /(^|\/)\.[^/]+$/,
   /(^|\/)[^/]+\.config\.[cm]?[jt]s$/,
   /(^|\/)(Dockerfile|Makefile|LICENSE|package-lock\.json|pnpm-lock\.yaml|yarn\.lock)$/,
-  /(^|\/)(docs?|migrations?|fixtures?|scripts|\.github)\//,
+  /(^|\/)(docs?|migrations?|fixtures?|scripts|\.github|coverage|\.nyc_output)\//,
 ];
 // A new file with at least this many lines, or this many changed lines in all, is worth a test; less is a small change.
 const NEW_FILE_LINES = 5;

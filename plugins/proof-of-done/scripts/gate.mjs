@@ -18,9 +18,11 @@ function main() {
   const ledger = ledgerPath(pluginDataDir(), input.session_id);
   const entries = readLedger(ledger);
   const stopHookActive = input.stop_hook_active === true;
-  const { tampering, untested } = stopHookActive ? { tampering: [], untested: [] } : sessionChecks({ cwd: input.cwd, entries, config });
-  // A subagent cannot ask the user, so only the main agent asks about missing tests.
-  const askable = !(input.hook_event_name === "SubagentStop" && config.tests === "ask");
+  const { tampering, untested, coverage } = stopHookActive ? { tampering: [], untested: [], coverage: null } : sessionChecks({ cwd: input.cwd, entries, config });
+  // A subagent cannot ask the user, so only the main agent asks about missing tests or uncovered lines.
+  const subagent = input.hook_event_name === "SubagentStop";
+  const askable = !(subagent && config.tests === "ask");
+  const coverageAskable = !(subagent && config.coverage === "ask");
   const verdict = decide({
     entries,
     lastMessage: input.last_assistant_message,
@@ -30,9 +32,12 @@ function main() {
     untested: askable ? untested : [],
     testsMode: config.tests,
     workspaces: config.workspaces ? findWorkspaces(input.cwd) : null,
+    coverage: coverage && coverageAskable ? { ...coverage, mode: config.coverage } : null,
   });
   if (verdict.allow) return;
-  if (verdict.askedAbout) appendEntry(ledger, { type: "tests-asked", files: verdict.askedAbout, cwd: input.cwd, at: new Date().toISOString() });
+  const at = new Date().toISOString();
+  if (verdict.askedAbout) appendEntry(ledger, { type: "tests-asked", files: verdict.askedAbout, cwd: input.cwd, at });
+  if (verdict.askedCoverage) appendEntry(ledger, { type: "coverage-asked", files: verdict.askedCoverage, cwd: input.cwd, at });
   process.stdout.write(JSON.stringify({ decision: "block", reason: verdict.reason }));
 }
 

@@ -3,8 +3,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { matchesGlob, nativePath } from "./classify.mjs";
 import { SHELL_EDIT } from "./shell.mjs";
+import { findUncovered, readCoverage } from "./coverage.mjs";
 import { findTampering } from "./tamper.mjs";
 import { findUntested } from "./untested.mjs";
+import { findWorkspaces } from "./workspaces.mjs";
 
 const MAX_NEW_FILE_BYTES = 256 * 1024;
 const MAX_NEW_FILES = 200;
@@ -16,14 +18,17 @@ function git(cwd, ...args) {
 
 export const headCommit = (cwd) => git(cwd, "rev-parse", "HEAD")?.trim() || null;
 
-// New, untracked files are not in `git diff`, so they are written as additions in the same format.
+// New, untracked files are not in `git diff`, so they are written as additions in the same format. They are listed
+// from the repository root, so their paths match `git diff` and files outside the current folder are included.
 function untrackedAsDiff(cwd) {
-  const files = (git(cwd, "ls-files", "--others", "--exclude-standard", "-z") ?? "").split("\0").filter(Boolean).slice(0, MAX_NEW_FILES);
+  const root = git(cwd, "rev-parse", "--show-toplevel")?.trim();
+  if (!root) return "";
+  const files = (git(root, "ls-files", "--others", "--exclude-standard", "-z") ?? "").split("\0").filter(Boolean).slice(0, MAX_NEW_FILES);
   return files.flatMap((file) => {
     let text;
     try {
-      if (fs.statSync(path.join(cwd, file)).size > MAX_NEW_FILE_BYTES) return [];
-      text = fs.readFileSync(path.join(cwd, file), "utf8");
+      if (fs.statSync(path.join(root, file)).size > MAX_NEW_FILE_BYTES) return [];
+      text = fs.readFileSync(path.join(root, file), "utf8");
     } catch {
       return [];
     }
@@ -49,9 +54,10 @@ function realPath(file) {
   }
 }
 
-// Files the session edited, relative to the repository root, or null when a shell command changed files it did not name.
-function editedFiles(cwd, entries) {
-  const edits = entries.filter((e) => e.type === "edit");
+// Files the session edited, relative to the repository root, or null when a shell command changed files it did not
+// name. `named` keeps only the files the session named, ignoring such commands.
+function editedFiles(cwd, entries, named = false) {
+  const edits = entries.filter((e) => e.type === "edit" && !(named && e.file === SHELL_EDIT));
   if (edits.some((e) => e.file === SHELL_EDIT)) return null;
   const root = git(cwd, "rev-parse", "--show-toplevel")?.trim();
   if (!root) return null;
@@ -59,23 +65,41 @@ function editedFiles(cwd, entries) {
   return new Set(edits.map((e) => path.relative(realRoot, realPath(path.resolve(e.cwd ?? cwd, nativePath(e.file)))).split(path.sep).join("/")));
 }
 
+// Changed lines that a coverage report written after the last edit shows never ran: { uncovered, reports, root }.
+// Only files the session itself edited are judged: a merge or a stash pop brings in code it did not write.
+function coverageCheck(cwd, entries, diff, ignore) {
+  const root = git(cwd, "rev-parse", "--show-toplevel")?.trim();
+  const lastEdit = Date.parse(entries.findLast((e) => e.type === "edit")?.at ?? "");
+  if (!root || Number.isNaN(lastEdit)) return null;
+  const edited = editedFiles(cwd, entries, true) ?? new Set();
+  const ws = findWorkspaces(cwd);
+  const packages = ws?.packages.map((p) => path.join(ws.root, p.dir)) ?? [];
+  const coverage = readCoverage(root, [...new Set([realPath(root), realPath(cwd), ...packages])], lastEdit);
+  if (!coverage.reports.length) return null;
+  return { uncovered: findUncovered({ diff, root: realPath(root), coverage, ignore, edited: (file) => edited.has(file) }), reports: coverage.reports, root: realPath(root) };
+}
+
 /**
- * The session's test changes that can make checks pass without a fix (`tampering`), and code changed with no test
- * change (`untested`). Both are [] when their check is off or the project is not a git repository.
+ * The session's test changes that can make checks pass without a fix (`tampering`), code changed with no test
+ * change (`untested`), and changed lines a fresh coverage report shows never ran (`coverage`, or null). Each is
+ * empty when its check is off or the project is not a git repository.
  */
 export function sessionChecks({ cwd, entries, config }) {
-  const none = { tampering: [], untested: [] };
+  const none = { tampering: [], untested: [], coverage: null };
   const tamper = config.tamper !== false;
   const tests = (config.tests ?? "ask") !== "off";
-  if ((!tamper && !tests) || !entries.some((e) => e.type === "edit")) return none;
+  const coverage = (config.coverage ?? "ask") !== "off";
+  if ((!tamper && !tests && !coverage) || !entries.some((e) => e.type === "edit")) return none;
   // SessionStart also fires on resume and compaction; the first baseline is where the session began.
   const baseline = entries.find((e) => e.type === "baseline")?.sha;
   const diff = sessionDiff(cwd, baseline);
   if (!diff) return none;
   const ignore = (file) => (config.ignore ?? []).some((glob) => matchesGlob(file, glob));
   const edited = tests ? editedFiles(cwd, entries) : null;
+  const wasEdited = (file) => !edited || edited.has(file);
   return {
     tampering: tamper ? findTampering(diff, ignore) : [],
-    untested: tests ? findUntested(diff, ignore, (file) => !edited || edited.has(file)) : [],
+    untested: tests ? findUntested(diff, ignore, wasEdited) : [],
+    coverage: coverage ? coverageCheck(cwd, entries, diff, ignore) : null,
   };
 }

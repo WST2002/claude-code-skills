@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.0
+
+- Checks that changed lines really ran in a test. When your test run writes a coverage report after the last edit (`coverage/lcov.info` from Jest, Vitest, c8, nyc or node; `coverage/coverage-final.json` from Istanbul; `coverage.xml` from coverage.py or pytest-cov), changed code lines the report shows with 0 hits are listed by file and line, and Claude asks you once whether to add tests that run them. The plugin never runs coverage itself, and an older report is never used.
+- `coverage` in `.claude/proof-of-done.json`: `"ask"` (default), `"strict"` (blocks until the lines run or the report gives an `Uncovered lines:` reason) or `"off"`.
+
 ## 0.5.0
 
 - Monorepos: each changed package that has its own `test` script needs a passing run after its last edit that covers it. A root `npm test` that only runs another workspace no longer clears a change in `packages/api`; the block names the package and the command for your package manager (`npm test -w packages/api`, `pnpm --filter api test`, `yarn workspace api test`, `bun --filter api test`).

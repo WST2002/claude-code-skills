@@ -303,3 +303,30 @@ test("monorepo: a failed run of the package's tests is not cleared by a passing 
   assert.equal(verdict.allow, false);
   assert.match(verdict.reason, /packages\/api/);
 });
+
+const covered = (uncovered, mode = "ask") => ({ uncovered, reports: [path.join(repo, "coverage/lcov.info")], root: repo, mode });
+const passed = [edit("/p/src/order.js"), run("npm test")];
+
+test("coverage: changed lines that never ran block once in ask mode, naming the lines and the report", () => {
+  const verdict = decide({ entries: passed, coverage: covered([{ file: "src/order.js", lines: [11, 12, 14] }]) });
+  assert.equal(verdict.allow, false);
+  assert.match(verdict.reason, /coverage\/lcov\.info/);
+  assert.match(verdict.reason, /src\/order\.js \(lines 11–12, 14\)/);
+  assert.match(verdict.reason, /ask the user once/);
+  assert.deepEqual(verdict.askedCoverage, ["src/order.js"]);
+  const again = decide({ entries: [...passed, { type: "coverage-asked", files: ["src/order.js"] }], coverage: covered([{ file: "src/order.js", lines: [11] }]) });
+  assert.deepEqual(again, { allow: true });
+});
+
+test("coverage: strict mode keeps blocking until the report explains, off never blocks", () => {
+  const strict = covered([{ file: "src/order.js", lines: [11] }], "strict");
+  const asked = [...passed, { type: "coverage-asked", files: ["src/order.js"] }];
+  assert.equal(decide({ entries: asked, coverage: strict }).allow, false);
+  assert.deepEqual(decide({ entries: asked, coverage: strict, lastMessage: "Uncovered lines: the retry branch needs a real network outage" }), { allow: true });
+  assert.deepEqual(decide({ entries: passed, coverage: covered([{ file: "src/order.js", lines: [11] }], "off") }), { allow: true });
+});
+
+test("coverage: not raised while the tests themselves still fail or never ran", () => {
+  const verdict = decide({ entries: [edit("/p/src/order.js"), run("npm test", 1)], coverage: covered([{ file: "src/order.js", lines: [11] }]) });
+  assert.doesNotMatch(verdict.reason, /did not run lines you changed/);
+});

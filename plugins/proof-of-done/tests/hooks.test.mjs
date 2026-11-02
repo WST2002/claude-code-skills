@@ -329,3 +329,135 @@ test("monorepo: \"workspaces\": false in the config turns the package check off"
   record({ tool_name: "Bash", tool_input: { command: "npm test" } });
   assert.equal(stop().stdout, "");
 });
+
+// A git project whose test run writes a real lcov report with node's own coverage.
+function coverageProject(t, config) {
+  const ctx = gitProject(t);
+  writeFiles(ctx.project, {
+    "package.json": { scripts: { test: "node --test" } },
+    "src/price.js": "exports.total = (items) => items.reduce((s, i) => s + i, 0);\n",
+    "test/price.test.js": "const { test } = require('node:test');\nconst assert = require('node:assert');\nconst { total } = require('../src/price.js');\ntest('sum', () => assert.equal(total([1, 2]), 3));\n",
+    "coverage/.keep": "",
+    ...(config && { ".claude/proof-of-done.json": config }),
+  });
+  ctx.git("add", "-A");
+  ctx.git("commit", "-q", "-m", "price");
+  ctx.start();
+  const env = Object.fromEntries(Object.entries(process.env).filter(([name]) => name !== "NODE_TEST_CONTEXT"));
+  ctx.testWithCoverage = () => {
+    const run = spawnSync(process.execPath, ["--test", "--experimental-test-coverage", "--test-reporter=lcov", "--test-reporter-destination=coverage/lcov.info", "test/price.test.js"], { cwd: ctx.project, encoding: "utf8", env });
+    assert.equal(run.status, 0, run.stderr);
+    ctx.record({ tool_name: "Bash", tool_input: { command: "npm run test" }, tool_response: { stdout: "", stderr: "" } });
+  };
+  ctx.editPrice = () => {
+    writeFiles(ctx.project, {
+      "src/price.js": "exports.total = (items, coupon) => {\n  const sum = items.reduce((s, i) => s + i, 0);\n  if (coupon === 'FLAT50') {\n    return Math.max(0, sum - 50);\n  }\n  return sum;\n};\n",
+    });
+    ctx.record({ tool_name: "Edit", tool_input: { file_path: path.join(ctx.project, "src/price.js") } });
+  };
+  return ctx;
+}
+
+test("coverage: a changed branch the tests never ran is asked about once, with its lines", (t) => {
+  const { stop, testWithCoverage, editPrice } = coverageProject(t);
+  editPrice();
+  testWithCoverage();
+  const verdict = block(stop());
+  assert.equal(verdict.decision, "block");
+  assert.match(verdict.reason, /coverage\/lcov\.info/);
+  assert.match(verdict.reason, /src\/price\.js \(lines 4–5\)/);
+  assert.equal(stop().stdout, "", "asked once");
+});
+
+test("coverage: a report from before the last edit is not used, and \"coverage\": \"off\" turns the check off", (t) => {
+  const stale = coverageProject(t);
+  stale.testWithCoverage();
+  stale.editPrice();
+  stale.record({ tool_name: "Bash", tool_input: { command: "npm run test" }, tool_response: { stdout: "", stderr: "" } });
+  assert.equal(stale.stop().stdout, "");
+
+  const off = coverageProject(t, { coverage: "off" });
+  off.editPrice();
+  off.testWithCoverage();
+  assert.equal(off.stop().stdout, "");
+});
+
+test("coverage: a subagent never asks about uncovered lines", (t) => {
+  const { stop, testWithCoverage, editPrice } = coverageProject(t);
+  editPrice();
+  testWithCoverage();
+  assert.equal(stop({ hook_event_name: "SubagentStop" }).stdout, "");
+});
+
+test("coverage: a monorepo package's own report is read", (t) => {
+  const ctx = gitProject(t);
+  writeFiles(ctx.project, {
+    "package.json": { private: true, workspaces: ["packages/*"], scripts: { test: "npm test --workspaces" } },
+    "packages/shop/package.json": { name: "shop", scripts: { test: "node --test" } },
+    "packages/shop/src/price.js": "exports.total = (items) => items.reduce((s, i) => s + i, 0);\n",
+  });
+  ctx.git("add", "-A");
+  ctx.git("commit", "-q", "-m", "shop");
+  ctx.start();
+  writeFiles(ctx.project, { "packages/shop/src/price.js": "exports.total = (items, coupon) => {\n  if (coupon) {\n    return 0;\n  }\n  return items.length;\n};\n" });
+  ctx.record({ tool_name: "Edit", tool_input: { file_path: path.join(ctx.project, "packages/shop/src/price.js") } });
+  writeFiles(ctx.project, { "packages/shop/coverage/lcov.info": "SF:src/price.js\nDA:1,1\nDA:2,1\nDA:3,0\nDA:4,0\nDA:5,1\nend_of_record\n" });
+  ctx.record({ tool_name: "Bash", tool_input: { command: "npm test --workspaces" }, tool_response: { stdout: "", stderr: "" } });
+  assert.match(block(ctx.stop()).reason, /packages\/shop\/src\/price\.js \(lines 3–4\)/);
+});
+
+const lcov = (lines) => `SF:src/a.js\n${lines.map(([n, c]) => `DA:${n},${c}`).join("\n")}\nend_of_record\n`;
+
+test("coverage: a new file is found when the session works in a subfolder of the repository", (t) => {
+  const ctx = gitProject(t);
+  const app = path.join(ctx.project, "app");
+  writeFiles(ctx.project, { "app/package.json": { scripts: { test: "node --test" } } });
+  ctx.git("add", "-A");
+  ctx.git("commit", "-q", "-m", "app");
+  ctx.start();
+  writeFiles(app, { "src/a.js": "a();\nif (x) {\n  b();\n}\n" });
+  ctx.record({ tool_name: "Write", tool_input: { file_path: path.join(app, "src/a.js") }, cwd: app });
+  writeFiles(app, { "coverage/lcov.info": lcov([[1, 1], [2, 1], [3, 0], [4, 0]]) });
+  ctx.record({ tool_name: "Bash", tool_input: { command: "npm test" }, tool_response: { stdout: "", stderr: "" }, cwd: app });
+  assert.match(block(ctx.stop({ cwd: app })).reason, /app\/src\/a\.js \(lines 3–4\)/);
+});
+
+test("coverage: after a git merge only the files the session edited are judged", (t) => {
+  const ctx = gitProject(t);
+  writeFiles(ctx.project, { "package.json": { scripts: { test: "node --test" } }, "src/a.js": "a();\n" });
+  ctx.git("add", "-A");
+  ctx.git("commit", "-q", "-m", "a");
+  ctx.git("checkout", "-q", "-b", "teammate");
+  writeFiles(ctx.project, { "src/team.js": "team();\nif (y) {\n  more();\n}\n" });
+  ctx.git("add", "-A");
+  ctx.git("commit", "-q", "-m", "team");
+  ctx.git("checkout", "-q", "-");
+  ctx.start();
+  ctx.git("merge", "-q", "teammate");
+  ctx.record({ tool_name: "Bash", tool_input: { command: "git merge teammate" } });
+  writeFiles(ctx.project, { "src/a.js": "a();\nb();\n" });
+  ctx.record({ tool_name: "Edit", tool_input: { file_path: path.join(ctx.project, "src/a.js") } });
+  writeFiles(ctx.project, { "coverage/lcov.info": `${lcov([[1, 1], [2, 1]])}SF:src/team.js\nDA:1,1\nDA:3,0\nend_of_record\n` });
+  ctx.record({ tool_name: "Bash", tool_input: { command: "npm test" }, tool_response: { stdout: "", stderr: "" } });
+  const result = ctx.stop({ last_assistant_message: "No new tests: one-line change covered by the existing suite." });
+  assert.doesNotMatch(result.stdout, /src\/team\.js/);
+  assert.doesNotMatch(result.stdout, /coverage\/lcov\.info/);
+});
+
+test("coverage: a monorepo inside a subfolder of the repository reads its packages' reports", (t) => {
+  const ctx = gitProject(t);
+  const web = path.join(ctx.project, "web");
+  writeFiles(web, {
+    "package.json": { private: true, workspaces: ["packages/*"], scripts: { test: "npm test --workspaces" } },
+    "packages/a/package.json": { name: "a", scripts: { test: "node --test" } },
+    "packages/a/src/a.js": "a();\n",
+  });
+  ctx.git("add", "-A");
+  ctx.git("commit", "-q", "-m", "web");
+  ctx.start();
+  writeFiles(web, { "packages/a/src/a.js": "a();\nif (x) {\n  b();\n}\n" });
+  ctx.record({ tool_name: "Edit", tool_input: { file_path: path.join(web, "packages/a/src/a.js") }, cwd: web });
+  writeFiles(web, { "packages/a/coverage/lcov.info": lcov([[1, 1], [2, 1], [3, 0], [4, 0]]) });
+  ctx.record({ tool_name: "Bash", tool_input: { command: "npm test --workspaces" }, tool_response: { stdout: "", stderr: "" }, cwd: web });
+  assert.match(block(ctx.stop({ cwd: web })).reason, /web\/packages\/a\/src\/a\.js \(lines 3–4\)/);
+});

@@ -13,11 +13,13 @@ const ABSOLUTE = /^(?:[A-Za-z]:)?[\\/]|^~/;
 const POPD = /^(?:popd|pop-location)$/i;
 // A folder the command moved to that cannot be worked out (cd - with no earlier cd, popd with nothing pushed).
 export const UNKNOWN_DIR = "<unknown>";
+// Tools started through a package manager: `npx vitest`, `pnpm vitest`, `pnpm exec jest`, `yarn jest`, `bunx vitest`.
+const LAUNCHER = String.raw`(?:npx|bunx|npm\s+exec|pnpm(?:\s+(?:exec|dlx))?|yarn(?:\s+dlx)?|bun(?:\s+x)?)\s+`;
 const CHECKS = [
-  /^(?:npx\s+)?turbo\s+(?:run\s+)?(?:test|build|lint|typecheck|check)(?=\s|$)/,
-  /^(?:npx\s+)?nx\s+(?:test|build|lint|typecheck|run-many)(?=\s|$)/,
-  /^(?:npx\s+)?lerna\s+run\s+(?:test|build|lint|typecheck|check)(?=\s|$)/,
-  /^npx\s+(?:tsc|vitest|jest|eslint|playwright\s+test)(?=\s|$)/,
+  new RegExp(String.raw`^(?:${LAUNCHER})?turbo\s+(?:run\s+)?(?:test|build|lint|typecheck|check)(?=\s|$)`),
+  new RegExp(String.raw`^(?:${LAUNCHER})?nx\s+(?:test|build|lint|typecheck|run-many|affected|run)(?=\s|$)`),
+  new RegExp(String.raw`^(?:${LAUNCHER})?lerna\s+run\s+(?:test|build|lint|typecheck|check)(?=\s|$)`),
+  new RegExp(String.raw`^${LAUNCHER}(?:tsc|vitest|jest|eslint|playwright\s+test)(?=\s|$)`),
   /^(?:python3?\s+-m\s+)?pytest(?=\s|$)/,
   /^go\s+(?:test|build)(?=\s|$)/,
   /^cargo\s+(?:test|build|check|clippy)(?=\s|$)/,
@@ -36,13 +38,17 @@ const OPERAND_COMMANDS = new Set(["mv", "cp", "rm", "tee", "set-content", "add-c
 const UNKNOWN_TARGET_GIT = new Set(["apply", "am", "merge", "rebase", "cherry-pick"]);
 
 const squash = (text) => text.trim().replace(/\s+/g, " ");
+const unquote = (text) => text.replace(/["']/g, "");
 const words = (text) => text.split(/\s+/).filter(Boolean);
 const fileOperands = (tokens) => tokens.filter((t) => !t.startsWith("-") && path.extname(t) !== "");
 
-export function splitCommand(command) {
-  const text = command.replace(QUOTED, '""');
+// Segments with quoted text emptied (`text`, so operators inside quotes are ignored) and as written (`raw`).
+function segmentsOf(command) {
+  // Quoted text is masked at the same length, so each segment's raw text can be cut from the same positions.
+  const text = command.replace(QUOTED, (q) => `"${"\u0000".repeat(q.length - 2)}"`);
   const segments = [];
   let start = 0;
+  const cut = (end, sep) => ({ text: text.slice(start, end).replace(/"\u0000*"/g, '""').trim(), raw: command.slice(start, end).trim(), sep });
   for (let i = 0; i < text.length; i++) {
     const pair = text.slice(i, i + 2);
     let sep = null;
@@ -51,12 +57,16 @@ export function splitCommand(command) {
     else if (text[i] === ";" || text[i] === "\n") sep = ";";
     else if (text[i] === "&" && text[i - 1] !== ">" && text[i + 1] !== ">") sep = "&";
     if (!sep) continue;
-    segments.push({ text: text.slice(start, i).trim(), sep });
+    segments.push(cut(i, sep));
     i += sep.length - 1;
     start = i + 1;
   }
-  segments.push({ text: text.slice(start).trim(), sep: "" });
+  segments.push(cut(text.length, ""));
   return segments.filter((s) => s.text);
+}
+
+export function splitCommand(command) {
+  return segmentsOf(command).map(({ text, sep }) => ({ text, sep }));
 }
 
 // `npm test`, `npm run test -w api`, `pnpm --filter api test`, `yarn workspace api test`: the flags that choose
@@ -66,13 +76,20 @@ function packageScript(text) {
   if (!PACKAGE_MANAGERS.has(tokens[0])) return null;
   let i = 1;
   if (tokens[0] === "yarn" && tokens[1] === "workspace") i = 3;
+  if (tokens[0] === "yarn" && tokens[1] === "workspaces" && tokens[2] === "run") i = 2;
   if (tokens[0] === "yarn" && tokens[1] === "workspaces" && tokens[2] === "foreach") {
     i = tokens.indexOf("run", 3);
     if (i === -1) return null;
   }
-  // pnpm's -w means "the workspace root" and takes no value.
-  while (tokens[i]?.startsWith("-")) i += VALUE_FLAGS.has(tokens[i]) && !(tokens[0] === "pnpm" && tokens[i] === "-w") ? 2 : 1;
-  if (tokens[i] === "run") i++;
+  // pnpm's -w means "the workspace root" and takes no value. Flags can also come after `run`.
+  const skipFlags = () => {
+    while (tokens[i]?.startsWith("-")) i += VALUE_FLAGS.has(tokens[i]) && !(tokens[0] === "pnpm" && tokens[i] === "-w") ? 2 : 1;
+  };
+  skipFlags();
+  if (tokens[i] === "run") {
+    i++;
+    skipFlags();
+  }
   if (!PACKAGE_SCRIPTS.has(tokens[i])) return null;
   const flags = tokens.slice(1, i).filter((t) => t !== "run");
   const found = { check: `${tokens[0]} ${tokens[i]}`, rest: [...flags, ...tokens.slice(i + 1)].join(" ") };
@@ -133,7 +150,7 @@ function editTargets(segment) {
 }
 
 export function analyzeShell(command, projectCommands = []) {
-  const segments = splitCommand(command);
+  const segments = segmentsOf(command);
   const pipefail = segments.some((s) => PIPEFAIL.test(s.text));
   // The folder each segment runs in, relative to where the command started: cd and pushd move it, popd and cd - go back.
   let dir;
@@ -141,7 +158,7 @@ export function analyzeShell(command, projectCommands = []) {
   let moved = false;
   const stack = [];
   return segments.flatMap((segment, index) => {
-    const cd = CD.exec(segment.text);
+    const cd = CD.exec(unquote(segment.raw));
     if (POPD.test(segment.text)) dir = stack.length ? stack.pop() : UNKNOWN_DIR;
     else if (cd?.[1] === "-") [dir, previous] = moved ? [previous, dir] : [UNKNOWN_DIR, dir];
     else if (cd) {
@@ -151,7 +168,8 @@ export function analyzeShell(command, projectCommands = []) {
       dir = dir && !ABSOLUTE.test(cd[1]) ? `${dir}/${cd[1]}` : cd[1];
     }
     const events = editTargets(segment.text).map((target) => ({ type: "edit", target, ...(dir && { dir }) }));
-    const found = parseCheck(segment.text, projectCommands);
+    // Quoted words (`--filter "@shop/api"`) are read from the segment as written, without their quotes.
+    const found = parseCheck(segment.raw === segment.text ? segment.text : unquote(segment.raw), projectCommands);
     if (found) events.push({ type: "verify", ...found, masked: isMaskedAt(segments, index, pipefail), ...(dir && { dir }) });
     return events;
   });

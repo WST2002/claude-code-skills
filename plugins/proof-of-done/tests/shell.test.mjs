@@ -168,3 +168,30 @@ test("PowerShell Push-Location and Pop-Location move the folder like pushd and p
   const dirs = (command) => analyzeShell(command).filter((e) => e.type === "verify").map((e) => e.dir);
   assert.deepEqual(dirs("Push-Location packages/web && npm test && Pop-Location && npm test"), ["packages/web", undefined]);
 });
+
+test("flags between run and the script name are read", () => {
+  for (const [command, check, args] of [
+    ["npm run -w workspaces/arborist test", "npm test", "-w workspaces/arborist"],
+    ["pnpm run --dir packages/adapter-node test", "pnpm test", "--dir packages/adapter-node"],
+    ["bun run --filter @opencode/cli test", "bun test", "--filter @opencode/cli"],
+    ["bun run --cwd packages/cli test", "bun test", "--cwd packages/cli"],
+  ]) {
+    assert.deepEqual(verifies(command)[0], { check, args, masked: false }, command);
+  }
+});
+
+test("test runners and task runners started through a package manager are checks", () => {
+  for (const [command, check] of [
+    ["pnpm vitest run", "pnpm vitest"], ["yarn jest examples/getting-started", "yarn jest"], ["bunx vitest", "bunx vitest"],
+    ["pnpm exec jest", "pnpm exec jest"], ["pnpm turbo run test --filter=@astrojs/react", "pnpm turbo run test"],
+    ["bun turbo test --filter=x", "bun turbo test"], ["pnpm nx test eslint-plugin", "pnpm nx test"],
+    ["npx nx run eslint-plugin:test", "npx nx run"], ["npx nx affected -t test", "npx nx affected"], ["yarn workspaces run test", "yarn test"],
+  ]) {
+    assert.equal(verifies(command)[0]?.check, check, command);
+  }
+});
+
+test("quoted workspace names are kept without the quotes", () => {
+  assert.deepEqual(verifies('pnpm --filter "@astrojs/react" run test')[0], { check: "pnpm test", args: "--filter @astrojs/react", masked: false });
+  assert.deepEqual(verifies("pnpm --filter '@astrojs/react' test | tail")[0], { check: "pnpm test", args: "--filter @astrojs/react", masked: true });
+});

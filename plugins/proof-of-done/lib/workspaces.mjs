@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { globToRegExp, nativePath } from "./classify.mjs";
-import { analyzeShell } from "./shell.mjs";
+import { analyzeShell, splitCommand } from "./shell.mjs";
 
 const MAX_LEVELS_UP = 8;
 const MAX_GLOB_DEPTH = 4;
@@ -145,8 +145,13 @@ const flagValues = (tokens, flags) =>
 const NONE = new Set();
 // Checks that run tests (as opposed to lint, typecheck or build), when they are not package scripts or task runners.
 const TEST_CHECK = /\b(?:jest|vitest|playwright test|pytest|go test|cargo test|dotnet test|mvnw? (?:test|verify)|gradlew? (?:test|check)|make (?:test|check))\b/;
-// A script that the parser cannot read but that looks like it runs tests (`node --test`, `mocha`, `ava`…).
-const TEST_LIKE_SCRIPT = /\b(?:test|tests|jest|vitest|mocha|ava|tap|playwright|cypress|uvu)\b/i;
+// Words that make a step the parser cannot read look like a test run: a runner (`jest`, `mocha`…), node's `--test`, or
+// a `test` / `test:unit` script. Words that only contain "test" (`tsconfig.test.json`, `build:tests`) do not count.
+const TEST_RUNNERS = new Set(["jest", "vitest", "mocha", "ava", "tap", "playwright", "cypress", "uvu", "jasmine", "karma"]);
+const looksLikeTests = (text) =>
+  text.split(/\s+/).some((word) => TEST_RUNNERS.has(path.posix.basename(word)) || word === "--test" || /^test(?::\S+)?$/.test(word));
+// A turbo/nx/lerna task that runs tests: `test`, `test:ci`, or turbo's `pkg#test`.
+const TEST_TASK = /^(?:\S+#)?test(?::\S+)?$/;
 
 const union = (scopes) => {
   if (scopes.includes("all")) return "all";
@@ -177,8 +182,11 @@ function scopeOfRootScript(name, ws, depth) {
   const script = ws.scripts[name];
   if (depth >= MAX_SCRIPT_DEPTH) return "all";
   if (typeof script !== "string") return name === "test" ? "all" : NONE;
+  // A step the parser cannot read but that looks like a test run (`jest`, `node --test`, `npm run test:unit`) may
+  // test every package.
+  const unread = splitCommand(script).some((s) => !analyzeShell(s.text).some((e) => e.type === "verify") && looksLikeTests(s.text));
+  if (unread) return "all";
   const runs = analyzeShell(script).filter((e) => e.type === "verify");
-  if (!runs.length) return TEST_LIKE_SCRIPT.test(script) ? "all" : NONE;
   return union(runs.map((event) => {
     const rel = relativeToRoot(path.resolve(ws.root, nativePath(event.dir ?? "")), ws);
     return rel === null ? "all" : scopeOfRun(event, rel, ws, depth + 1);
@@ -190,11 +198,15 @@ function scopeOfRootScript(name, ws, depth) {
  * run started in. When the target cannot be worked out the run counts for every package, so the gate never blocks on
  * a guess; a run that is not a test run (lint, typecheck, build) covers no package.
  */
-function scopeOfRun(run, baseRel, ws, depth = 0) {
-  if (run.runner) return "all";
-  const check = run.check ?? run.command ?? "";
+function scopeOfRun(entry, baseRel, ws, depth = 0) {
+  // Read the run again from its full text: a command from the `verify` setting is stored whole
+  // (`npm test -- --ci`). A command none of the patterns know (`make ci`, `npm run test:ci`) counts for every package.
+  const run = analyzeShell(`${entry.check ?? entry.command ?? ""} ${entry.args ?? ""}`).find((e) => e.type === "verify");
+  if (!run) return "all";
+  if (run.runner || entry.runner) return "all";
+  const { check } = run;
   // Words after `--` go to the test runner, and pnpm's -w means the workspace root.
-  const words = (run.args ?? "").split(/\s+/).filter(Boolean);
+  const words = run.args.split(/\s+/).filter(Boolean);
   const before = words.includes("--") ? words.slice(0, words.indexOf("--")) : words;
   const pnpmRoot = check.startsWith("pnpm ") && before.includes("-w");
   const tokens = pnpmRoot ? before.filter((t) => t !== "-w") : before;
@@ -204,12 +216,13 @@ function scopeOfRun(run, baseRel, ws, depth = 0) {
     const named = namedPackages(check, tokens, baseRel, ws);
     if (named) return script === "test" ? named : NONE;
     if (pnpmRoot || baseRel === "") return scopeOfRootScript(script, ws, depth);
-    if (own) return script === "test" ? new Set([own.dir]) : NONE;
-    return "all";
+    if (script !== "test") return NONE;
+    return own ? new Set([own.dir]) : "all";
   }
   if (TASK_RUNNER.test(check)) {
-    const isTest = /\btest$/.test(check) || (/run-many$/.test(check) && /(?:^|[\s=,])test(?:$|[\s,])/.test(tokens.join(" ")));
-    return isTest ? namedPackages(check, tokens, baseRel, ws) ?? "all" : NONE;
+    // The tasks are every plain word: `turbo run build test`, `nx test api`, `nx run-many -t test:ci`.
+    const tasks = `${check} ${tokens.join(" ")}`.split(/[\s=,]+/);
+    return tasks.some((t) => TEST_TASK.test(t)) ? namedPackages(check, tokens, baseRel, ws) ?? "all" : NONE;
   }
   if (!TEST_CHECK.test(check)) return NONE;
   return own ? new Set([own.dir]) : "all";

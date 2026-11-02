@@ -211,3 +211,43 @@ test("folder names are compared without case on Windows", { skip: process.platfo
   const { root, ws } = monorepo(t);
   assert.equal(packageOf(path.join(root, "PACKAGES/WEB/src/x.js"), root, ws).name, "web");
 });
+
+test("a configured check stored whole is read again; an unrecognised one counts for every package", (t) => {
+  const { root, ws } = monorepo(t);
+  assert.deepEqual(covered(ws, run(root, "npm test -- --ci", "npm test -- --ci", "")), ["web"]);
+  for (const command of ["npm run test:ci", "make ci"]) {
+    assert.deepEqual(covered(ws, run(root, command, command, "")), ["api", "web"], command);
+  }
+});
+
+test("a root script that mixes lint or build steps with test steps the parser cannot read covers every package", (t) => {
+  for (const scripts of [
+    { test: "npm run lint && npm run test:unit", lint: "eslint .", "test:unit": "npm test --workspaces" },
+    { test: "npm run build && jest", build: "tsc" },
+    { test: "npx tsc --noEmit && node --test packages" },
+  ]) {
+    const { root, ws } = monorepo(t, scripts);
+    assert.deepEqual(covered(ws, run(root, "npm test", "npm test")), ["api", "web"], scripts.test);
+  }
+});
+
+test("turbo with several tasks and nx test targets with a suffix are test runs", (t) => {
+  const { root, ws } = monorepo(t);
+  assert.deepEqual(covered(ws, run(root, "npx turbo run build test", "npx turbo run build", "test")), ["api", "web"]);
+  assert.deepEqual(covered(ws, run(root, "turbo run lint test --filter=api", "turbo run lint", "test --filter=api")), ["api"]);
+  assert.deepEqual(covered(ws, run(root, "npx nx run-many -t test:ci", "npx nx run-many", "-t test:ci")), ["api", "web"]);
+  assert.deepEqual(covered(ws, run(root, "npx turbo run build lint", "npx turbo run build", "lint")), []);
+});
+
+test("a non-test script run in a folder outside every package covers no package", (t) => {
+  const { root, ws } = monorepo(t);
+  assert.deepEqual(covered(ws, run(root, "cd tools && npm run lint", "npm lint", "", { dir: "tools" })), []);
+  assert.deepEqual(covered(ws, run(root, "cd tools && npm run build", "npm build", "", { dir: "tools" })), []);
+});
+
+test("words that only contain 'test' do not make a script look like tests", (t) => {
+  for (const scripts of [{ test: "tsc -p tsconfig.test.json" }, { test: "npm run build:tests", "build:tests": "tsc" }, { test: "tsc -p tsconfig.test.json && echo ok" }]) {
+    const { root, ws } = monorepo(t, scripts);
+    assert.deepEqual(covered(ws, run(root, "npm test", "npm test")), [], scripts.test);
+  }
+});

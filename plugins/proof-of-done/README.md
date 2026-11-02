@@ -63,9 +63,9 @@ package folder (`cd packages/api && npm test` too), named it (`-w`,
 turbo, `nx run-many`, `lerna run`, `bun test`). A plain root run covers what the
 tests in the root script cover. Lint, typecheck and build runs do not count as
 running a package's tests. When the target cannot be worked out (dependency
-filters like `api...`, unreadable scripts, a folder the command moved to that
-cannot be known), the run counts for every package, so the gate never blocks on
-a guess.
+filters like `api...`, a command from `verify` or a script step it cannot read,
+a folder the command moved to that cannot be known), the run counts for every
+package, so the gate never blocks on a guess.
 
 3. If verification is genuinely impossible, the agent can end with
    `Verification: skipped — <reason>` and say so honestly.
